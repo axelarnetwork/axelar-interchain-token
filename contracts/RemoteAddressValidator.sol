@@ -13,11 +13,9 @@ contract RemoteAddressValidator is IRemoteAddressValidator, Upgradable {
     mapping(string => bytes32) public remoteAddressHashes;
     mapping(string => string) public remoteAddresses;
     address public immutable tokenLinkerAddress;
-
-    bytes32 public constant override contractId = bytes32(0);
-
+    
     // bytes32(uint256(keccak256('remote-address-validator')) - 1)
-    //bytes32 public constant override contractId = 0x5d9f4d5e6bb737c289f92f2a319c66ba484357595194acb7c2122e48550eda7c;
+    bytes32 public constant override contractId = 0x5d9f4d5e6bb737c289f92f2a319c66ba484357595194acb7c2122e48550eda7c;
 
     constructor(
         address tokenLinkerAddress_,

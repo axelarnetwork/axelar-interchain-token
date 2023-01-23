@@ -9,11 +9,13 @@ interface ITokenLinker {
     error MintFailed();
     error BurnFailed();
     error NotNativeToken();
+    error AlreadyRegistered();
+    error NotGatewayToken();
 
-    event Sending(string destinationChain, address indexed destinationAddress, uint256 indexed amount);
+    event Sending(string destinationChain, bytes destinationAddress, uint256 indexed amount);
     event SendingWithData(
         string destinationChain,
-        address indexed destinationAddress,
+        bytes destinationAddress,
         uint256 indexed amount,
         address indexed from,
         bytes data
@@ -26,6 +28,10 @@ interface ITokenLinker {
         address indexed from,
         bytes data
     );
+
+    function tokenRegistry(bytes32 tokenId) external view returns (bytes32 tokenData);
+    function originalChain(bytes32 tokenId) external view returns (string memory origin);
+    function tokenIds(address tokenAddress) external view returns (bytes32 tokenId);
 
     function getTokenAddress(bytes32 tokenId) external view returns (address tokenAddress);
 
@@ -43,15 +49,18 @@ interface ITokenLinker {
     function sendToken(
         bytes32 tokenId,
         string memory destinationChain,
-        address to,
+        bytes memory to,
         uint256 amount
     ) external payable;
 
     function sendTokenWithData(
         bytes32 tokenId,
         string memory destinationChain,
-        address to,
+        bytes memory to,
         uint256 amount,
         bytes calldata data
     ) external payable;
+
+    function registerNativeGatewayToken(address tokenAddress) external returns (bytes32 tokenId);
+    function registerRemoteGatewayToken(address tokenAddress, bytes32 tokenId, string calldata origin) external;
 }
