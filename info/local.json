@@ -9,9 +9,10 @@
     "rpc": "http://localhost:8500/0",
     "tokenName": "DEV",
     "tokenSymbol": "DEV",
-    "token": "0xe8014F32A38EB795BDa32E62a814bF788F42d693",
-    "tokenLinker": "0x2E19Fb927f17042BFf1d3066dE618E0F2027218c",
-    "remoteAddressValidator": "0x32Fcc0a13A8BE38caC293893BE0739040D17eed0"
+    "gatewayToken": "0xe8014F32A38EB795BDa32E62a814bF788F42d693",
+    "token": "0x775C53cd1F4c36ac74Cb4Aa1a3CA1508e9C4Bd24",
+    "tokenLinker": "0x8632eFbfe56756E072e36D61f8Ad6fB598287029",
+    "remoteAddressValidator": "0x40978BcE2F3611bc84f00967f83c654Ee1786A91"
   },
   {
     "name": "Avalanche",
@@ -24,8 +25,9 @@
     "tokenName": "Avax",
     "tokenSymbol": "AVAX",
     "token": "0xe8014F32A38EB795BDa32E62a814bF788F42d693",
-    "tokenLinker": "0x2E19Fb927f17042BFf1d3066dE618E0F2027218c",
-    "remoteAddressValidator": "0x32Fcc0a13A8BE38caC293893BE0739040D17eed0"
+    "tokenLinker": "0x8632eFbfe56756E072e36D61f8Ad6fB598287029",
+    "remoteAddressValidator": "0x40978BcE2F3611bc84f00967f83c654Ee1786A91",
+    "gatewayToken": "0xedab77634b61fb523A35c1d5229042c366F794DA"
   },
   {
     "name": "Fantom",
@@ -38,8 +40,8 @@
     "tokenName": "Fantom",
     "tokenSymbol": "FTM",
     "token": "0xe8014F32A38EB795BDa32E62a814bF788F42d693",
-    "tokenLinker": "0x2E19Fb927f17042BFf1d3066dE618E0F2027218c",
-    "remoteAddressValidator": "0x32Fcc0a13A8BE38caC293893BE0739040D17eed0"
+    "tokenLinker": "0x8632eFbfe56756E072e36D61f8Ad6fB598287029",
+    "remoteAddressValidator": "0x40978BcE2F3611bc84f00967f83c654Ee1786A91"
   },
   {
     "name": "Ethereum",
@@ -52,8 +54,8 @@
     "tokenName": "Ether",
     "tokenSymbol": "ETH",
     "token": "0xe8014F32A38EB795BDa32E62a814bF788F42d693",
-    "tokenLinker": "0x2E19Fb927f17042BFf1d3066dE618E0F2027218c",
-    "remoteAddressValidator": "0x32Fcc0a13A8BE38caC293893BE0739040D17eed0"
+    "tokenLinker": "0x8632eFbfe56756E072e36D61f8Ad6fB598287029",
+    "remoteAddressValidator": "0x40978BcE2F3611bc84f00967f83c654Ee1786A91"
   },
   {
     "name": "Polygon",
@@ -66,7 +68,7 @@
     "tokenName": "Matic",
     "tokenSymbol": "MATIC",
     "token": "0xe8014F32A38EB795BDa32E62a814bF788F42d693",
-    "tokenLinker": "0x2E19Fb927f17042BFf1d3066dE618E0F2027218c",
-    "remoteAddressValidator": "0x32Fcc0a13A8BE38caC293893BE0739040D17eed0"
+    "tokenLinker": "0x8632eFbfe56756E072e36D61f8Ad6fB598287029",
+    "remoteAddressValidator": "0x40978BcE2F3611bc84f00967f83c654Ee1786A91"
   }
 ]

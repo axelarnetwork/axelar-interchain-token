@@ -11,6 +11,7 @@ contract TokenLinkerExecutableTest is ITokenLinkerCallable {
     function processToken(
         address tokenAddress,
         string calldata,
+        bytes calldata,
         uint256 amount,
         bytes calldata data
     ) external override {
