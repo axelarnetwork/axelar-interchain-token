@@ -58,6 +58,7 @@ contract TokenLinker is ITokenLinker, AxelarExecutable, Upgradable, ITokenLinker
     }
 
     function registerToken(address tokenAddress) external override returns (bytes32 tokenId) {
+        if(tokenIds[tokenAddress] != bytes32(0)) revert AlreadyRegistered();
         tokenId = getNativeTokenId(tokenAddress);
         if(tokenRegistry[tokenId] != bytes32(0)) revert AlreadyRegistered();
         _validateNativeToken(tokenAddress);
@@ -87,6 +88,7 @@ contract TokenLinker is ITokenLinker, AxelarExecutable, Upgradable, ITokenLinker
         override
         returns (bytes32 tokenId)
     {
+        if(tokenIds[tokenAddress] != bytes32(0)) revert AlreadyRegistered();
         tokenId = getNativeTokenId(tokenAddress);
         if(tokenRegistry[tokenId] != bytes32(0)) revert AlreadyRegistered();
         tokenRegistry[tokenId] = LinkedTokenData.createTokenData(tokenAddress, true);
@@ -392,7 +394,7 @@ contract TokenLinker is ITokenLinker, AxelarExecutable, Upgradable, ITokenLinker
             payload = abi.encode(RemoteActions.GIVE_TOKEN, tokenId, to, amount);
         } else if(action == RemoteActions.SEND_TOKEN_WITH_DATA) {
             (, , , bytes memory data2) = abi.decode(data, (RemoteActions, string, bytes, bytes));
-            payload = abi.encode(RemoteActions.GIVE_TOKEN, tokenId, to, amount, sourceAddress, data2);
+            payload = abi.encode(RemoteActions.GIVE_TOKEN_WITH_DATA, tokenId, to, amount, sourceAddress, data2);
         }
         _sendPayload(destinationChain, payload);
     }
