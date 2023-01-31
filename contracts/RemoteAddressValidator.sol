@@ -30,7 +30,7 @@ contract RemoteAddressValidator is IRemoteAddressValidator, Upgradable {
         for (uint256 i; i < length; ++i) {
             string memory chainName = trustedChainNames[i];
             if (bytes(chainName).length == 0) revert ZeroStringLength();
-            string memory remoteAddress = trustedAddresses[i];
+            string memory remoteAddress = _lowerCase(trustedAddresses[i]);
             if (bytes(remoteAddress).length == 0) revert ZeroStringLength();
             remoteAddresses[chainName] = remoteAddress;
             bytes32 remoteAddressHash = keccak256(bytes(remoteAddress));
@@ -51,13 +51,17 @@ contract RemoteAddressValidator is IRemoteAddressValidator, Upgradable {
     function validateSender(string calldata sourceChain, string calldata sourceAddress) external view override returns (bool) {
         string memory sourceAddressLC = _lowerCase(sourceAddress);
         bytes32 sourceAddressHash = keccak256(bytes(sourceAddressLC));
-        if (sourceAddressHash == addressHash) return true;
-        if (sourceAddressHash == remoteAddressHashes[sourceChain]) return true;
+        bytes32 remoteAddressHash = remoteAddressHashes[sourceChain];
+        if(remoteAddressHash == bytes32(0)) {
+            if (sourceAddressHash == addressHash) return true;
+        } else {
+            if (sourceAddressHash == remoteAddressHash) return true;
+        }
         return false;
     }
 
     function addTrustedAddress(string calldata sourceChain, string calldata sourceAddress) external onlyOwner {
-        remoteAddressHashes[sourceChain] = keccak256(bytes(sourceAddress));
+        remoteAddressHashes[sourceChain] = keccak256(bytes(_lowerCase(sourceAddress)));
         remoteAddresses[sourceChain] = sourceAddress;
     }
 

@@ -25,7 +25,7 @@ contract TokenLinker is ITokenLinker, AxelarExecutable, Upgradable, ITokenLinker
     IRemoteAddressValidator public immutable remoteAddressValidator;
     // bytes32(uint256(keccak256('token-linker')) - 1)
     bytes32 public override constant contractId = 0x6ec6af55bf1e5f27006bfa01248d73e8894ba06f23f8002b047607ff2b1944ba;
-    mapping(bytes32 => bytes32) public override tokenRegistry;
+    mapping(bytes32 => bytes32) public override tokenDatas;
     mapping(bytes32 => string) public override originalChain;
     mapping(address => bytes32) public override tokenIds;
     bytes32 public immutable chainNameHash;
@@ -43,88 +43,92 @@ contract TokenLinker is ITokenLinker, AxelarExecutable, Upgradable, ITokenLinker
         address remoteAddressValidatorAddress_,
         string memory chainName
     ) AxelarExecutable(gatewayAddress_) {
-        if (gatewayAddress_ == address(0) || gasServiceAddress_ == address(0)) revert TokenLinkerZeroAddress();
+        if (gatewayAddress_ == address(0) 
+            || gasServiceAddress_ == address(0) 
+            || remoteAddressValidatorAddress_ == address(0)
+        ) revert TokenLinkerZeroAddress();
         gasService = IAxelarGasService(gasServiceAddress_);
         remoteAddressValidator = IRemoteAddressValidator(remoteAddressValidatorAddress_);
         chainNameHash = keccak256(bytes(chainName));
     }
 
     function getTokenAddress(bytes32 tokenId) public view override returns (address) {
-        return tokenRegistry[tokenId].getAddress();
+        return tokenDatas[tokenId].getAddress();
     }
 
-    function getNativeTokenId(address tokenAddress) public view override returns (bytes32) {
+    function getOriginTokenId(address tokenAddress) public view override returns (bytes32) {
         return keccak256(abi.encode(chainNameHash, tokenAddress));
     }
 
-    function registerToken(address tokenAddress) external override returns (bytes32 tokenId) {
+    function _registerToken(address tokenAddress) internal returns (bytes32 tokenId) {
         if(tokenIds[tokenAddress] != bytes32(0)) revert AlreadyRegistered();
-        tokenId = getNativeTokenId(tokenAddress);
-        if(tokenRegistry[tokenId] != bytes32(0)) revert AlreadyRegistered();
-        _validateNativeToken(tokenAddress);
-        tokenRegistry[tokenId] = LinkedTokenData.createTokenData(tokenAddress, true);
+        tokenId = getOriginTokenId(tokenAddress);
+        if(tokenDatas[tokenId] != bytes32(0)) revert AlreadyRegistered();
+        tokenDatas[tokenId] = LinkedTokenData.createTokenData(tokenAddress, true);
         tokenIds[tokenAddress] = tokenId;
     }
 
-    function registerNativeGatewayToken(address tokenAddress) external override onlyOwner returns (bytes32 tokenId) {
-        tokenId = getNativeTokenId(tokenAddress);
-        (,string memory symbol,) = _validateNativeToken(tokenAddress);
-        if(gateway.tokenAddresses(symbol) != tokenAddress) revert NotGatewayToken();
-        tokenRegistry[tokenId] = LinkedTokenData.createGatewayTokenData(tokenAddress, true, symbol);
+    function registerOriginToken(address tokenAddress) external override returns (bytes32 tokenId) {
+        (, string memory symbol,) = _validateOriginToken(tokenAddress);
+        if(gateway.tokenAddresses(symbol) == tokenAddress) revert GatewayToken(); 
+        tokenId = _registerToken(tokenAddress);
+    }
+
+    function registerOriginGatewayToken(string calldata symbol) external override onlyOwner returns (bytes32 tokenId) {
+        address tokenAddress = gateway.tokenAddresses(symbol);
+        if(tokenAddress == address(0)) revert NotGatewayToken();
+        tokenId = getOriginTokenId(tokenAddress);
+        tokenDatas[tokenId] = LinkedTokenData.createGatewayTokenData(tokenAddress, true, symbol);
         tokenIds[tokenAddress] = tokenId;
     }
 
-    function registerRemoteGatewayToken(address tokenAddress, bytes32 tokenId, string calldata origin) external override onlyOwner {
-        (,string memory symbol,) = _validateNativeToken(tokenAddress);
-        if(gateway.tokenAddresses(symbol) != tokenAddress) revert NotGatewayToken();
-        tokenRegistry[tokenId] = LinkedTokenData.createGatewayTokenData(tokenAddress, true, symbol);
+    function registerRemoteGatewayToken(string calldata symbol, bytes32 tokenId, string calldata origin) external override onlyOwner {
+        address tokenAddress = gateway.tokenAddresses(symbol);
+        if(tokenAddress == address(0)) revert NotGatewayToken();
+        tokenDatas[tokenId] = LinkedTokenData.createGatewayTokenData(tokenAddress, false, symbol);
         tokenIds[tokenAddress] = tokenId;
         originalChain[tokenId] = origin;
     }
 
-    function registerTokenAndDeployRemoteTokens(address tokenAddress, string[] calldata destinationChains)
+    function _deployRemoteTokens(
+        string[] calldata destinationChains, 
+        uint256[] calldata gasValues,
+        bytes32 tokenId,
+        address tokenAddress
+    ) internal returns (string memory) {
+        (string memory name, string memory symbol, uint8 decimals) = _validateOriginToken(tokenAddress);
+        uint256 length = destinationChains.length;
+        if( gasValues.length != length) revert LengthMismatch();
+        for (uint256 i; i < length; ++i) {
+            bytes memory payload = abi.encode(RemoteActions.DEPLOY_TOKEN, tokenId, name, symbol, decimals);
+            _sendPayload(destinationChains[i], payload, gasValues[i]);
+        }
+        return symbol;
+    }
+
+    function registerOriginTokenAndDeployRemoteTokens(
+        address tokenAddress, 
+        string[] calldata destinationChains, 
+        uint256[] calldata gasValues
+    )
         external
         payable
         override
         returns (bytes32 tokenId)
     {
-        if(tokenIds[tokenAddress] != bytes32(0)) revert AlreadyRegistered();
-        tokenId = getNativeTokenId(tokenAddress);
-        if(tokenRegistry[tokenId] != bytes32(0)) revert AlreadyRegistered();
-        tokenRegistry[tokenId] = LinkedTokenData.createTokenData(tokenAddress, true);
-        tokenIds[tokenAddress] = tokenId;
-        uint256 length = destinationChains.length;
-        (string memory name, string memory symbol, uint8 decimals) = _validateNativeToken(tokenAddress);
-        for (uint256 i; i < length; ++i) {
-            _deployRemoteToken(tokenId, name, symbol, decimals, destinationChains[i]);
-        }
+        tokenId = _registerToken(tokenAddress);
+        string memory symbol = _deployRemoteTokens(destinationChains, gasValues, tokenId, tokenAddress);
+        if(gateway.tokenAddresses(symbol) == tokenAddress) revert GatewayToken(); 
     }
 
-    function deployRemoteTokens(bytes32 tokenId, string[] calldata destinationChains) external payable override {
-        bytes32 tokenData = tokenRegistry[tokenId];
-        if (!tokenData.isNative()) revert NotNativeToken();
+    function deployRemoteTokens(bytes32 tokenId, string[] calldata destinationChains, uint256[] calldata gasValues) external payable override {
+        bytes32 tokenData = tokenDatas[tokenId];
+        if (!tokenData.isOrigin()) revert NotOriginToken();
         address tokenAddress = tokenData.getAddress();
-
-        (string memory name, string memory symbol, uint8 decimals) = _validateNativeToken(tokenAddress);
-
-        uint256 length = destinationChains.length;
-        for (uint256 i; i < length; ++i) {
-            _deployRemoteToken(tokenId, name, symbol, decimals, destinationChains[i]);
-        }
+        _deployRemoteTokens(destinationChains, gasValues, tokenId, tokenAddress);
     }
 
-    function _deployRemoteToken(
-        bytes32 tokenId,
-        string memory name,
-        string memory symbol,
-        uint8 decimals,
-        string calldata destinationChain
-    ) internal {
-        bytes memory payload = abi.encode(RemoteActions.DEPLOY_TOKEN, tokenId, name, symbol, decimals);
-        _sendPayload(destinationChain, payload);
-    }
-
-    function _validateNativeToken(address tokenAddress)
+    function _validateOriginToken(address tokenAddress)
         internal
         returns (
             string memory name,
@@ -144,9 +148,9 @@ contract TokenLinker is ITokenLinker, AxelarExecutable, Upgradable, ITokenLinker
         string memory tokenSymbol,
         uint8 decimals
     ) internal {
-        if(tokenRegistry[tokenId] != bytes32(0)) revert AlreadyRegistered();
+        if(tokenDatas[tokenId] != bytes32(0)) revert AlreadyRegistered();
         address tokenAddress = address(new BurnableMintableCappedERC20(tokenName, tokenSymbol, decimals, 0));
-        tokenRegistry[tokenId] = LinkedTokenData.createTokenData(tokenAddress, false);
+        tokenDatas[tokenId] = LinkedTokenData.createTokenData(tokenAddress, false);
         tokenIds[tokenAddress] = tokenId;
     }
 
@@ -156,7 +160,7 @@ contract TokenLinker is ITokenLinker, AxelarExecutable, Upgradable, ITokenLinker
         bytes calldata to,
         uint256 amount
     ) external payable override {
-        bytes32 tokenData = tokenRegistry[tokenId];
+        bytes32 tokenData = tokenDatas[tokenId];
         _takeToken(tokenData, msg.sender, amount);
         emit Sending(destinationChain, to, amount);
         if(tokenData.isGateway()) {
@@ -164,7 +168,7 @@ contract TokenLinker is ITokenLinker, AxelarExecutable, Upgradable, ITokenLinker
             _callContractWithToken(destinationChain, tokenData, amount, payload);
         } else {
             bytes memory payload = abi.encode(RemoteActions.GIVE_TOKEN, tokenId, to, amount);
-            _sendPayload(destinationChain, payload);
+            _sendPayload(destinationChain, payload, msg.value);
         }
     }
 
@@ -175,7 +179,7 @@ contract TokenLinker is ITokenLinker, AxelarExecutable, Upgradable, ITokenLinker
         uint256 amount,
         bytes calldata data
     ) external payable override {
-        bytes32 tokenData = tokenRegistry[tokenId];
+        bytes32 tokenData = tokenDatas[tokenId];
         _takeToken(tokenData, msg.sender, amount);
         emit SendingWithData(destinationChain, to, amount, msg.sender, data);
         if(tokenData.isGateway()) {
@@ -183,13 +187,12 @@ contract TokenLinker is ITokenLinker, AxelarExecutable, Upgradable, ITokenLinker
             _callContractWithToken(destinationChain, tokenData, amount, payload);
         } else {
             bytes memory payload = abi.encode(RemoteActions.GIVE_TOKEN_WITH_DATA, tokenId, to, amount, abi.encodePacked(msg.sender), data);
-            _sendPayload(destinationChain, payload);
+            _sendPayload(destinationChain, payload, msg.value);
         }
     }
 
-    function _sendPayload(string memory destinationChain, bytes memory payload) internal {
+    function _sendPayload(string memory destinationChain, bytes memory payload, uint256 gasValue) internal {
         string memory destinationAddress = remoteAddressValidator.getRemoteAddress(destinationChain);
-        uint256 gasValue = msg.value;
         if (gasValue > 0) {
             gasService.payNativeGasForContractCall{ value: gasValue }(
                 address(this),
@@ -265,7 +268,7 @@ contract TokenLinker is ITokenLinker, AxelarExecutable, Upgradable, ITokenLinker
         
         if (action == RemoteActions.GIVE_TOKEN) {
             (, bytes32 tokenId, bytes memory to) = abi.decode(payload, (RemoteActions, bytes32, bytes));
-            bytes32 tokenData = tokenRegistry[tokenId];
+            bytes32 tokenData = tokenDatas[tokenId];
             address tokenAddress = tokenData.getAddress();
             _transfer(tokenAddress, AddressBytesUtils.toAddress(to), amount);
         } else if (action == RemoteActions.GIVE_TOKEN_WITH_DATA) {
@@ -276,7 +279,7 @@ contract TokenLinker is ITokenLinker, AxelarExecutable, Upgradable, ITokenLinker
     function _giveTokenWithDataWrapper(bytes calldata payload, uint256 amount, string calldata sourceChain) internal {
             (, bytes32 tokenId, bytes memory toBytes, bytes memory sourceAddress ,bytes memory data) = abi.decode(payload, (RemoteActions, bytes32, bytes, bytes, bytes));
             address to = AddressBytesUtils.toAddress(toBytes);
-            bytes32 tokenData = tokenRegistry[tokenId];
+            bytes32 tokenData = tokenDatas[tokenId];
             address tokenAddress = tokenData.getAddress();
             _transfer(tokenAddress, to, amount);
             ITokenLinkerCallable(to).processToken(tokenAddress, sourceChain, sourceAddress, amount, data);
@@ -331,9 +334,9 @@ contract TokenLinker is ITokenLinker, AxelarExecutable, Upgradable, ITokenLinker
         address to,
         uint256 amount
     ) internal {
-        bytes32 tokenData = tokenRegistry[tokenId];
+        bytes32 tokenData = tokenDatas[tokenId];
         address tokenAddress = tokenData.getAddress();
-        if (tokenData.isNative()) {
+        if (tokenData.isOrigin()) {
             _transfer(tokenAddress, to, amount);
         } else {
             _mint(tokenAddress, to, amount);
@@ -342,14 +345,14 @@ contract TokenLinker is ITokenLinker, AxelarExecutable, Upgradable, ITokenLinker
 
     function _takeToken(
         bytes32 tokenData,
-        address to,
+        address from,
         uint256 amount
     ) internal {
         address tokenAddress = tokenData.getAddress();
-        if (tokenData.isNative()) {
-            _transferFrom(tokenAddress, to, amount);
+        if (tokenData.isOrigin()) {
+            _transferFrom(tokenAddress, from, amount);
         } else {
-            _burn(tokenAddress, to, amount);
+            _burn(tokenAddress, from, amount);
         }
     }
 
@@ -361,9 +364,9 @@ contract TokenLinker is ITokenLinker, AxelarExecutable, Upgradable, ITokenLinker
         bytes memory sourceAddress,
         bytes memory data
     ) internal {
-        bytes32 tokenData = tokenRegistry[tokenId];
+        bytes32 tokenData = tokenDatas[tokenId];
         address tokenAddress = tokenData.getAddress();
-        if (tokenData.isNative()) {
+        if (tokenData.isOrigin()) {
             _transfer(tokenAddress, to, amount);
         } else {
             _mint(tokenAddress, to, amount);
@@ -373,7 +376,7 @@ contract TokenLinker is ITokenLinker, AxelarExecutable, Upgradable, ITokenLinker
 
 
     // This is meant to send gateway tokens to chains where the gateway tokens are not supported.
-    // To do so, fist a user would call sendTokenWithData, sending the gateway tokens to the chain where the token is native
+    // To do so, first a user would call sendTokenWithData, sending the gateway tokens to the chain where the token is origin
     // The destination would be the token linker in that chain, and the data tell the token linker where to send the tokens
     // There is one issue however, that needs to be handled by microservices: This second contract call cannot have gas payed by microservices
     function processToken(
@@ -396,6 +399,6 @@ contract TokenLinker is ITokenLinker, AxelarExecutable, Upgradable, ITokenLinker
             (, , , bytes memory data2) = abi.decode(data, (RemoteActions, string, bytes, bytes));
             payload = abi.encode(RemoteActions.GIVE_TOKEN_WITH_DATA, tokenId, to, amount, sourceAddress, data2);
         }
-        _sendPayload(destinationChain, payload);
+        _sendPayload(destinationChain, payload, 0);
     }
 }

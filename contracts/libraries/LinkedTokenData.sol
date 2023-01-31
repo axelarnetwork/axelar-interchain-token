@@ -3,7 +3,7 @@
 pragma solidity 0.8.9;
 
 library LinkedTokenData {
-    bytes32 public constant IS_NATIVE_MASK = bytes32(uint256(0x80 << 248));
+    bytes32 public constant IS_ORIGIN_MASK = bytes32(uint256(0x80 << 248));
     bytes32 public constant IS_GATEWAY_MASK = bytes32(uint256(0x40 << 248));
     bytes32 public constant LENGTH_MASK = bytes32(uint256(0x0f << 248));
 
@@ -11,8 +11,8 @@ library LinkedTokenData {
         return address(uint160(uint256((tokenData))));
     }
 
-    function isNative(bytes32 tokenData) internal pure returns (bool) {
-        return tokenData & IS_NATIVE_MASK == IS_NATIVE_MASK;
+    function isOrigin(bytes32 tokenData) internal pure returns (bool) {
+        return tokenData & IS_ORIGIN_MASK == IS_ORIGIN_MASK;
     }
     function isGateway(bytes32 tokenData) internal pure returns (bool) {
         return tokenData & IS_GATEWAY_MASK == IS_GATEWAY_MASK;
@@ -32,16 +32,16 @@ library LinkedTokenData {
     }
 
 
-    function createTokenData(address tokenAddress, bool native) internal pure returns (bytes32 tokenData) {
+    function createTokenData(address tokenAddress, bool origin) internal pure returns (bytes32 tokenData) {
         tokenData = bytes32(uint256(uint160(tokenAddress)));
-        if (native) tokenData |= IS_NATIVE_MASK;
+        if (origin) tokenData |= IS_ORIGIN_MASK;
     }
 
 
     error SymbolTooLong();
-    function createGatewayTokenData(address tokenAddress, bool native, string memory symbol) internal pure returns (bytes32 tokenData) {
+    function createGatewayTokenData(address tokenAddress, bool origin, string memory symbol) internal pure returns (bytes32 tokenData) {
         tokenData = bytes32(uint256(uint160(tokenAddress))) | IS_GATEWAY_MASK;
-        if (native) tokenData |= IS_NATIVE_MASK;
+        if (origin) tokenData |= IS_ORIGIN_MASK;
         uint256 length = bytes(symbol).length;
         if(length > 11) revert SymbolTooLong();
 

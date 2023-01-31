@@ -8,9 +8,11 @@ interface ITokenLinker {
     error TransferFromFailed();
     error MintFailed();
     error BurnFailed();
-    error NotNativeToken();
+    error NotOriginToken();
     error AlreadyRegistered();
     error NotGatewayToken();
+    error GatewayToken();
+    error LengthMismatch();
 
     event Sending(string destinationChain, bytes destinationAddress, uint256 indexed amount);
     event SendingWithData(
@@ -29,22 +31,22 @@ interface ITokenLinker {
         bytes data
     );
 
-    function tokenRegistry(bytes32 tokenId) external view returns (bytes32 tokenData);
+    function tokenDatas(bytes32 tokenId) external view returns (bytes32 tokenData);
     function originalChain(bytes32 tokenId) external view returns (string memory origin);
     function tokenIds(address tokenAddress) external view returns (bytes32 tokenId);
 
     function getTokenAddress(bytes32 tokenId) external view returns (address tokenAddress);
 
-    function getNativeTokenId(address tokenAddress) external view returns (bytes32 tokenId);
+    function getOriginTokenId(address tokenAddress) external view returns (bytes32 tokenId);
 
-    function registerToken(address tokenAddress) external returns (bytes32 tokenId);
+    function registerOriginToken(address tokenAddress) external returns (bytes32 tokenId);
 
-    function registerTokenAndDeployRemoteTokens(address tokenAddress, string[] calldata destinationChains)
+    function registerOriginTokenAndDeployRemoteTokens(address tokenAddress, string[] calldata destinationChains, uint256[] calldata gasValues)
         external
         payable
         returns (bytes32 tokenId);
 
-    function deployRemoteTokens(bytes32 tokenId, string[] calldata destinationChains) external payable;
+    function deployRemoteTokens(bytes32 tokenId, string[] calldata destinationChains, uint256[] calldata gasValues) external payable;
 
     function sendToken(
         bytes32 tokenId,
@@ -61,6 +63,6 @@ interface ITokenLinker {
         bytes calldata data
     ) external payable;
 
-    function registerNativeGatewayToken(address tokenAddress) external returns (bytes32 tokenId);
-    function registerRemoteGatewayToken(address tokenAddress, bytes32 tokenId, string calldata origin) external;
+    function registerOriginGatewayToken(string calldata symbol) external returns (bytes32 tokenId);
+    function registerRemoteGatewayToken(string calldata symbol, bytes32 tokenId, string calldata origin) external;
 }
