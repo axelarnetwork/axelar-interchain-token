@@ -11,8 +11,8 @@
     "tokenSymbol": "DEV",
     "gatewayToken": "0xe8014F32A38EB795BDa32E62a814bF788F42d693",
     "token": "0x775C53cd1F4c36ac74Cb4Aa1a3CA1508e9C4Bd24",
-    "tokenLinker": "0x8632eFbfe56756E072e36D61f8Ad6fB598287029",
-    "remoteAddressValidator": "0x40978BcE2F3611bc84f00967f83c654Ee1786A91"
+    "tokenLinker": "0xaf876900F536bc75Afe01cE0e7629f4F9860Ce1b",
+    "remoteAddressValidator": "0xf7BD9a5229D59A1354B7431c8f7002442E022C9b"
   },
   {
     "name": "Avalanche",
@@ -25,8 +25,8 @@
     "tokenName": "Avax",
     "tokenSymbol": "AVAX",
     "token": "0xe8014F32A38EB795BDa32E62a814bF788F42d693",
-    "tokenLinker": "0x8632eFbfe56756E072e36D61f8Ad6fB598287029",
-    "remoteAddressValidator": "0x40978BcE2F3611bc84f00967f83c654Ee1786A91",
+    "tokenLinker": "0xaf876900F536bc75Afe01cE0e7629f4F9860Ce1b",
+    "remoteAddressValidator": "0xf7BD9a5229D59A1354B7431c8f7002442E022C9b",
     "gatewayToken": "0xedab77634b61fb523A35c1d5229042c366F794DA"
   },
   {
@@ -40,8 +40,8 @@
     "tokenName": "Fantom",
     "tokenSymbol": "FTM",
     "token": "0xe8014F32A38EB795BDa32E62a814bF788F42d693",
-    "tokenLinker": "0x8632eFbfe56756E072e36D61f8Ad6fB598287029",
-    "remoteAddressValidator": "0x40978BcE2F3611bc84f00967f83c654Ee1786A91"
+    "tokenLinker": "0xaf876900F536bc75Afe01cE0e7629f4F9860Ce1b",
+    "remoteAddressValidator": "0xf7BD9a5229D59A1354B7431c8f7002442E022C9b"
   },
   {
     "name": "Ethereum",
@@ -54,8 +54,8 @@
     "tokenName": "Ether",
     "tokenSymbol": "ETH",
     "token": "0xe8014F32A38EB795BDa32E62a814bF788F42d693",
-    "tokenLinker": "0x8632eFbfe56756E072e36D61f8Ad6fB598287029",
-    "remoteAddressValidator": "0x40978BcE2F3611bc84f00967f83c654Ee1786A91"
+    "tokenLinker": "0xaf876900F536bc75Afe01cE0e7629f4F9860Ce1b",
+    "remoteAddressValidator": "0xf7BD9a5229D59A1354B7431c8f7002442E022C9b"
   },
   {
     "name": "Polygon",
@@ -68,7 +68,7 @@
     "tokenName": "Matic",
     "tokenSymbol": "MATIC",
     "token": "0xe8014F32A38EB795BDa32E62a814bF788F42d693",
-    "tokenLinker": "0x8632eFbfe56756E072e36D61f8Ad6fB598287029",
-    "remoteAddressValidator": "0x40978BcE2F3611bc84f00967f83c654Ee1786A91"
+    "tokenLinker": "0xaf876900F536bc75Afe01cE0e7629f4F9860Ce1b",
+    "remoteAddressValidator": "0xf7BD9a5229D59A1354B7431c8f7002442E022C9b"
   }
 ]

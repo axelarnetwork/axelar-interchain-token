@@ -5,6 +5,7 @@ pragma solidity 0.8.9;
 library LinkedTokenData {
     bytes32 public constant IS_ORIGIN_MASK = bytes32(uint256(0x80 << 248));
     bytes32 public constant IS_GATEWAY_MASK = bytes32(uint256(0x40 << 248));
+    bytes32 public constant IS_REMOTE_GATEWAY_MASK = bytes32(uint256(0x20 << 248));
     bytes32 public constant LENGTH_MASK = bytes32(uint256(0x0f << 248));
 
     function getAddress(bytes32 tokenData) internal pure returns (address) {
@@ -16,6 +17,9 @@ library LinkedTokenData {
     }
     function isGateway(bytes32 tokenData) internal pure returns (bool) {
         return tokenData & IS_GATEWAY_MASK == IS_GATEWAY_MASK;
+    }
+    function isRemoteGateway(bytes32 tokenData) internal pure returns (bool) {
+        return tokenData & IS_REMOTE_GATEWAY_MASK == IS_REMOTE_GATEWAY_MASK;
     }
 
     function getSymbolLength(bytes32 tokenData) internal pure returns (uint256) {
@@ -48,5 +52,9 @@ library LinkedTokenData {
         tokenData |= bytes32(length) << 248;
         bytes32 symbolData = bytes32(bytes(symbol)) >> 8;
         tokenData |= symbolData;
+    }
+
+    function createRemoteGatewayTokenData(address tokenAddress) internal pure returns (bytes32 tokenData) {
+        tokenData = bytes32(uint256(uint160(tokenAddress))) | IS_REMOTE_GATEWAY_MASK;
     }
 }

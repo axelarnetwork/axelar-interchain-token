@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 
 pragma solidity 0.8.9;
-import { IRemoteAddressValidator } from './interfaces/IRemoteAddressValidator.sol';
+import { ILinkerRouter } from './interfaces/ILinkerRouter.sol';
 import { StringToAddress, AddressToString } from '@axelar-network/axelar-gmp-sdk-solidity/contracts/StringAddressUtils.sol';
 import { Upgradable } from '@axelar-network/axelar-gmp-sdk-solidity/contracts/upgradables/Upgradable.sol';
 
-contract RemoteAddressValidator is IRemoteAddressValidator, Upgradable {
+contract LinkerRouter is ILinkerRouter, Upgradable {
     using StringToAddress for string;
     using AddressToString for address;
 
@@ -13,6 +13,7 @@ contract RemoteAddressValidator is IRemoteAddressValidator, Upgradable {
     mapping(string => bytes32) public remoteAddressHashes;
     mapping(string => string) public remoteAddresses;
     address public immutable tokenLinkerAddress;
+    mapping(string => bool) public supportedByGateway;
     
     // bytes32(uint256(keccak256('remote-address-validator')) - 1)
     bytes32 public constant override contractId = 0x5d9f4d5e6bb737c289f92f2a319c66ba484357595194acb7c2122e48550eda7c;
@@ -48,7 +49,7 @@ contract RemoteAddressValidator is IRemoteAddressValidator, Upgradable {
         return s;
     }
 
-    function validateSender(string calldata sourceChain, string calldata sourceAddress) external view override returns (bool) {
+    function validateSender(string calldata sourceChain, string calldata sourceAddress) external view returns (bool) {
         string memory sourceAddressLC = _lowerCase(sourceAddress);
         bytes32 sourceAddressHash = keccak256(bytes(sourceAddressLC));
         bytes32 remoteAddressHash = remoteAddressHashes[sourceChain];
@@ -70,7 +71,21 @@ contract RemoteAddressValidator is IRemoteAddressValidator, Upgradable {
         remoteAddresses[sourceChain] = '';
     }
 
-    function getRemoteAddress(string calldata chainName) external view override returns (string memory remoteAddress) {
+    function addGatewaySupportedChains(string[] calldata chainNames) external onlyOwner {
+        uint256 length = chainNames.length;
+        for(uint256 i; i<length; ++i) {
+            supportedByGateway[chainNames[i]] = true;
+        }
+    }
+
+    function removeGatewaySupportedChains(string[] calldata chainNames) external onlyOwner {
+        uint256 length = chainNames.length;
+        for(uint256 i; i<length; ++i) {
+            supportedByGateway[chainNames[i]] = false;
+        }
+    }
+
+    function getRemoteAddress(string calldata chainName) external view returns (string memory remoteAddress) {
         remoteAddress = remoteAddresses[chainName];
         if (bytes(remoteAddress).length == 0) {
             remoteAddress = tokenLinkerAddress.toString();

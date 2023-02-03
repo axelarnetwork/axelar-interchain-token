@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.9;
 
-interface ITokenLinker {
+interface IInterchainTokenLinker {
     error TokenLinkerZeroAddress();
     error TransferFailed();
     error TransferFromFailed();
@@ -13,6 +13,9 @@ interface ITokenLinker {
     error NotGatewayToken();
     error GatewayToken();
     error LengthMismatch();
+    error SupportedByGateway();
+    error NotSelf();
+    error ExecutionFailed();
 
     event Sending(string destinationChain, bytes destinationAddress, uint256 indexed amount);
     event SendingWithData(
@@ -65,4 +68,45 @@ interface ITokenLinker {
 
     function registerOriginGatewayToken(string calldata symbol) external returns (bytes32 tokenId);
     function registerRemoteGatewayToken(string calldata symbol, bytes32 tokenId, string calldata origin) external;
+
+    function selfDeployToken(
+        bytes32 tokenId,
+        string calldata origin,
+        string calldata tokenName,
+        string calldata tokenSymbol,
+        uint8 decimals,
+        bool isGateway
+    ) external;
+
+    function selfGiveToken(
+        bytes32 tokenId, 
+        bytes calldata destinationAddress,
+        uint256 amount
+    ) external;
+
+    function selfGiveTokenWithData(
+        bytes32 tokenId,
+        string calldata sourceChain, 
+        bytes calldata sourceAddress, 
+        bytes calldata destinationAddress,
+        uint256 amount, 
+        bytes memory data
+    ) external;
+
+    function selfSendToken(
+        bytes32 tokenId, 
+        string calldata destinationChain, 
+        bytes calldata destinationAddress,
+        uint256 amount 
+    ) external;
+
+    function selfSendTokenWithData(
+        bytes32 tokenId, 
+        string calldata sourceChain,
+        bytes calldata sourceAddress,
+        string calldata destinationChain, 
+        bytes calldata destinationAddress,
+        uint256 amount,
+        bytes calldata data
+    ) external;
 }

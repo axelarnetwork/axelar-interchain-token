@@ -34,3 +34,17 @@ This section will be separated into two sections: the admin section, that explai
 All of the below are for the `TokenLinker`.
 
 - `registerToken(address tokenAddress)`
+
+## Encoding
+
+### Call Contract Payloads
+
+There are currently five different payloads that can be sent via call contract. These payloads will always start with the first 32 bytes containing the `RemoteAction` that should occur. The encoding after will depend on the type of action required.
+
+- `DEPLOY_TOKEN`: `(bytes32 tokenId, string name, string symbol, uint8 decimals, bool isGateway`. The first four are self explenatory, the last tells the remote chain whether the token should be marked
+- `GIVE_TOKEN`:
+- `GIVE_TOKEN_WITH_DATA`:
+- `SEND_TOKEN`:
+- `SEND_TOKEN_WITH_DATA`:
+
+### Call Contract With Token Payloads
