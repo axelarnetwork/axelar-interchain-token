@@ -3,7 +3,7 @@
 pragma solidity ^0.8.9;
 
 // General interface for upgradable contracts
-interface IRemoteAddressValidator {
+interface ILinkerRouter {
     error ZeroAddress();
     error LengthMismatch();
     error ZeroStringLength();
@@ -15,4 +15,10 @@ interface IRemoteAddressValidator {
     function removeTrustedAddress(string calldata sourceChain) external;
 
     function getRemoteAddress(string calldata chainName) external view returns (string memory remoteAddress);
+
+    function supportedByGateway(string calldata chainName) external view returns (bool);
+
+    function addGatewaySupportedChains(string[] calldata chainNames) external;
+
+    function removeGatewaySupportedChains(string[] calldata chainNames) external;
 }
