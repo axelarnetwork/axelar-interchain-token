@@ -8,11 +8,11 @@ import { IAxelarGasService } from '@axelar-network/axelar-cgp-solidity/contracts
 import { IERC20 } from './interfaces/IERC20.sol';
 import { IBurnableMintableCappedERC20 } from '@axelar-network/axelar-cgp-solidity/contracts/interfaces/IBurnableMintableCappedERC20.sol';
 import { IMintableCappedERC20 } from '@axelar-network/axelar-cgp-solidity/contracts/interfaces/IMintableCappedERC20.sol';
-import { BurnableMintableCappedERC20 } from '@axelar-network/axelar-cgp-solidity/contracts/BurnableMintableCappedERC20.sol';
 
 import { IInterchainTokenLinker } from './interfaces/IInterchainTokenLinker.sol';
-import { ITokenLinkerCallable } from './interfaces/ITokenLinkerCallable.sol';
+import { IInterTokenExecutable } from './interfaces/IInterTokenExecutable.sol';
 import { ILinkerRouter } from './interfaces/ILinkerRouter.sol';
+import { ITokenDeployer } from './interfaces/ITokenDeployer.sol';
 import { Upgradable } from '@axelar-network/axelar-gmp-sdk-solidity/contracts/upgradables/Upgradable.sol';
 
 import { LinkedTokenData } from './libraries/LinkedTokenData.sol';
@@ -22,26 +22,31 @@ contract InterchainTokenLinker is IInterchainTokenLinker, AxelarExecutable, Upgr
     using LinkedTokenData for bytes32;
 
     IAxelarGasService public immutable gasService;
-    ILinkerRouter public immutable remoteAddressValidator;
+    ILinkerRouter public immutable linkerRouter;
+    ITokenDeployer public immutable tokenDeployer;
     // bytes32(uint256(keccak256('token-linker')) - 1)
     bytes32 public constant contractId = 0x6ec6af55bf1e5f27006bfa01248d73e8894ba06f23f8002b047607ff2b1944ba;
     mapping(bytes32 => bytes32) public tokenDatas;
     mapping(bytes32 => string) public originalChain;
     mapping(address => bytes32) public tokenIds;
     //bytes32 public immutable chainNameHash;
+    string chainName;
 
     constructor(
         address gatewayAddress_,
         address gasServiceAddress_,
-        address remoteAddressValidatorAddress_,
-        string memory /*chainName_*/
+        address linkerRouterAddress_,
+        address tokenDeployerAddress_,
+        string memory chainName_
     ) AxelarExecutable(gatewayAddress_) {
         if (gatewayAddress_ == address(0) 
             || gasServiceAddress_ == address(0) 
-            || remoteAddressValidatorAddress_ == address(0)
+            || linkerRouterAddress_ == address(0)
         ) revert TokenLinkerZeroAddress();
         gasService = IAxelarGasService(gasServiceAddress_);
-        remoteAddressValidator = ILinkerRouter(remoteAddressValidatorAddress_);
+        linkerRouter = ILinkerRouter(linkerRouterAddress_);
+        tokenDeployer = ITokenDeployer(tokenDeployerAddress_);
+        chainName = chainName_;
         //chainNameHash = keccak256(bytes(chainName_));
     }
 
@@ -106,22 +111,22 @@ contract InterchainTokenLinker is IInterchainTokenLinker, AxelarExecutable, Upgr
     function sendToken(
         bytes32 tokenId,
         string calldata destinationChain,
-        bytes calldata to,
+        bytes calldata destinationAddress,
         uint256 amount
     ) external payable {
         _takeToken(tokenId, msg.sender, amount);
-        _sendToken(tokenId, destinationChain, to, amount);
+        _sendToken(tokenId, destinationChain, destinationAddress, amount);
     }
 
-    function sendTokenWithData(
+    function callContractWithInterToken(
         bytes32 tokenId,
         string calldata destinationChain,
-        bytes calldata to,
+        bytes calldata destinationAddress,
         uint256 amount,
         bytes calldata data
     ) external payable {
         _takeToken(tokenId, msg.sender, amount);
-        _sendTokenWithData(tokenId, '', bytes(''), destinationChain, to, amount, data);
+        _sendTokenWithData(tokenId, chainName, AddressBytesUtils.toBytes(msg.sender), destinationChain, destinationAddress, amount, data);
     }
 
     /* EXECUTE AND EXECUTE WITH TOKEN */
@@ -131,7 +136,7 @@ contract InterchainTokenLinker is IInterchainTokenLinker, AxelarExecutable, Upgr
         string calldata sourceAddress, 
         bytes calldata payload
     ) internal override {
-        if (!remoteAddressValidator.validateSender(sourceChain, sourceAddress)) return;
+        if (!linkerRouter.validateSender(sourceChain, sourceAddress)) return;
         (bool success,) = address(this).call(payload);
         if(!success) revert ExecutionFailed();
     }
@@ -143,7 +148,7 @@ contract InterchainTokenLinker is IInterchainTokenLinker, AxelarExecutable, Upgr
         string calldata /*symbol*/,
         uint256 /*amount*/
     ) internal override {
-        if (!remoteAddressValidator.validateSender(sourceChain, sourceAddress)) return;  
+        if (!linkerRouter.validateSender(sourceChain, sourceAddress)) return;  
         (bool success,) = address(this).call(payload);
         if(!success) revert ExecutionFailed();
     }
@@ -166,7 +171,7 @@ contract InterchainTokenLinker is IInterchainTokenLinker, AxelarExecutable, Upgr
             }
             revert AlreadyRegistered();
         }
-        address tokenAddress = address(new BurnableMintableCappedERC20(tokenName, tokenSymbol, decimals, 0));
+        address tokenAddress = tokenDeployer.deployToken(tokenName, tokenSymbol, decimals, tokenId);
         if(isGateway) {
             tokenDatas[tokenId] = LinkedTokenData.createRemoteGatewayTokenData(tokenAddress);
         } else {
@@ -237,8 +242,10 @@ contract InterchainTokenLinker is IInterchainTokenLinker, AxelarExecutable, Upgr
         uint256 length = destinationChains.length;
         if( gasValues.length != length) revert LengthMismatch();
         for (uint256 i; i < length; ++i) {
-            if(tokenData.isGateway() && remoteAddressValidator.supportedByGateway(destinationChains[i])) revert SupportedByGateway();
-            bytes memory payload = abi.encodeWithSelector(this.selfDeployToken.selector, tokenId, 'Moonbeam', name, symbol, decimals, tokenData.isGateway());
+            if(tokenData.isGateway() && linkerRouter.supportedByGateway(destinationChains[i])) revert SupportedByGateway();
+            bytes memory payload = abi.encodeWithSelector(
+                this.selfDeployToken.selector, tokenId, chainName, name, symbol, decimals, tokenData.isGateway()
+            );
             _callContract(destinationChains[i], payload, gasValues[i]);
         }
         return symbol;
@@ -267,7 +274,7 @@ contract InterchainTokenLinker is IInterchainTokenLinker, AxelarExecutable, Upgr
         bytes32 tokenData = tokenDatas[tokenId];
         bytes memory payload;
         if(tokenData.isGateway()) {
-            if(remoteAddressValidator.supportedByGateway(destinationChain)) {
+            if(linkerRouter.supportedByGateway(destinationChain)) {
                 payload = abi.encodeWithSelector(this.selfGiveToken.selector, tokenId, to, amount);
                _callContractWithToken(destinationChain, tokenData, amount, payload);
             } else if(tokenData.isOrigin()) {
@@ -303,7 +310,7 @@ contract InterchainTokenLinker is IInterchainTokenLinker, AxelarExecutable, Upgr
         bytes32 tokenData = tokenDatas[tokenId];
         bytes memory payload;
         if(tokenData.isGateway()) {
-            if(remoteAddressValidator.supportedByGateway(destinationChain)) {
+            if(linkerRouter.supportedByGateway(destinationChain)) {
                 payload = abi.encodeWithSelector(this.selfGiveTokenWithData.selector, tokenId, sourceChain, sourceAddress, to, amount, data);
                _callContractWithToken(destinationChain, tokenData, amount, payload);
             } else if(tokenData.isOrigin()) {
@@ -328,7 +335,7 @@ contract InterchainTokenLinker is IInterchainTokenLinker, AxelarExecutable, Upgr
     }
 
     function _callContract(string memory destinationChain, bytes memory payload, uint256 gasValue) internal {
-        string memory destinationAddress = remoteAddressValidator.getRemoteAddress(destinationChain);
+        string memory destinationAddress = linkerRouter.getRemoteAddress(destinationChain);
         if (gasValue > 0) {
             gasService.payNativeGasForContractCall{ value: gasValue }(
                 address(this),
@@ -347,7 +354,7 @@ contract InterchainTokenLinker is IInterchainTokenLinker, AxelarExecutable, Upgr
         uint256 amount, 
         bytes memory payload
     ) internal {
-        string memory destinationAddress = remoteAddressValidator.getRemoteAddress(destinationChain);
+        string memory destinationAddress = linkerRouter.getRemoteAddress(destinationChain);
         uint256 gasValue = msg.value;
         string memory symbol = tokenData.getSymbol();
         if (gasValue > 0) {
@@ -452,6 +459,6 @@ contract InterchainTokenLinker is IInterchainTokenLinker, AxelarExecutable, Upgr
         } else {
             _mint(tokenAddress, to, amount);
         }
-        ITokenLinkerCallable(to).processToken(tokenAddress, sourceChain, sourceAddress, amount, data);
+        IInterTokenExecutable(to).exectuteWithInterToken(tokenAddress, sourceChain, sourceAddress, amount, data);
     }
 }

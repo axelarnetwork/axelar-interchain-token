@@ -58,7 +58,7 @@ interface IInterchainTokenLinker {
         uint256 amount
     ) external payable;
 
-    function sendTokenWithData(
+    function callContractWithInterToken(
         bytes32 tokenId,
         string memory destinationChain,
         bytes memory to,

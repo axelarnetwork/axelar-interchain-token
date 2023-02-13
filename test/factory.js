@@ -11,11 +11,13 @@ const ERC20MintableBurnable = require('../artifacts/@axelar-network/axelar-gmp-s
 const ITokenLinker = require('../artifacts/contracts/interfaces/IInterchainTokenLinker.sol/IInterchainTokenLinker.json');
 const IERC20 = require('../artifacts/contracts/interfaces/IERC20.sol/IERC20.json');
 const TokenLinker = require('../artifacts/contracts/InterchainTokenLinker.sol/InterchainTokenLinker.json');
+const TokenDeployer = require('../artifacts/contracts/TokenDeployer.sol/TokenDeployer.json');
 const TokenLinkerExecutableTest = require('../artifacts/contracts/test/TokenLinkerExecutableTest.sol/TokenLinkerExecutableTest.json');
 const TokenLinkerProxy = require('../artifacts/contracts/proxies/InterchainTokenLinkerProxy.sol/InterchainTokenLinkerProxy.json');
 const LinkerRouterProxy = require('../artifacts/contracts/proxies/LinkerRouterProxy.sol/LinkerRouterProxy.json');
 const LinkerRouter = require('../artifacts/contracts/LinkerRouter.sol/LinkerRouter.json');
 const IAxelarGasService = require('@axelar-network/axelar-gmp-sdk-solidity/artifacts/contracts/interfaces/IAxelarGasService.sol/IAxelarGasService.json');
+const AddressBytesUtils = require('../artifacts/contracts/libraries/AddressBytesUtils.sol/AddressBytesUtils.json')
 const { deployContract } = require('@axelar-network/axelar-gmp-sdk-solidity/scripts/utils');
 const { predictContractConstant, deployUpgradable, deployAndInitContractConstant } = require('@axelar-network/axelar-gmp-sdk-solidity');
 const { createAndExport, networks } = require('@axelar-network/axelar-local-dev');
@@ -42,19 +44,20 @@ async function deployToken(chain, walletUnconnected, name = 'Subnet Token', symb
 async function deployTokenLinker(chain) {
     const provider = getDefaultProvider(chain.rpc);
     const walletConnected = wallet.connect(provider);
-    const ravAddress = await predictContractConstant(chain.constAddressDeployer, walletConnected, LinkerRouterProxy, 'remoteAddressValidator', []);
-    
+    const ravAddress = await predictContractConstant(chain.constAddressDeployer, walletConnected, LinkerRouterProxy, 'linkerRouter', []);
+
+    const tokenDeployer = await deployContract(walletConnected, TokenDeployer);
     const tl = await deployUpgradable(
         chain.constAddressDeployer,
         walletConnected,
         TokenLinker,
         TokenLinkerProxy,
-        [chain.gateway, chain.gasReceiver, ravAddress, chain.name],
+        [chain.gateway, chain.gasReceiver, ravAddress, tokenDeployer.address, chain.name],
         [],
         [],
         'tokenLinker',
     );
-    const remoteAddressValidator = await deployUpgradable(
+    const linkerRouter = await deployUpgradable(
         chain.constAddressDeployer,
         walletConnected,
         LinkerRouter,
@@ -62,11 +65,11 @@ async function deployTokenLinker(chain) {
         [tl.address, [], []], 
         [],
         [],
-        'remoteAddressValidator',
+        'linkerRouter',
     );
 
     chain.tokenLinker = tl.address;
-    chain.remoteAddressValidator = remoteAddressValidator.address;
+    chain.linkerRouter = linkerRouter.address;
 }
 
 describe('Token Linker', () => {
@@ -99,7 +102,7 @@ describe('Token Linker', () => {
             const provider = getDefaultProvider(chain.rpc);
             chain.walletConnected = wallet.connect(provider);
             chain.tl = new Contract(chain.tokenLinker, ITokenLinker.abi, chain.walletConnected);
-            chain.rav = new Contract(chain.remoteAddressValidator, LinkerRouter.abi, chain.walletConnected);
+            chain.rav = new Contract(chain.linkerRouter, LinkerRouter.abi, chain.walletConnected);
             chain.tok = new Contract(chain.token, ERC20MintableBurnable.abi, chain.walletConnected);
             if(chain.gatewayToken) chain.gatewayTok = new Contract(chain.gatewayToken, ERC20MintableBurnable.abi, chain.walletConnected);
         }
