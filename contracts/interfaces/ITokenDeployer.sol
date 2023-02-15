@@ -6,6 +6,7 @@ interface ITokenDeployer {
     function test() external returns (address addr);
 
     function deployToken(
+        address owner,
         string calldata name,
         string calldata symbol,
         uint8 decimals,

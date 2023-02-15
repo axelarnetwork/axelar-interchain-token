@@ -1,26 +1,21 @@
 'use strict';
 
 const chai = require('chai');
-const { getDefaultProvider, Contract, Wallet, ContractFactory, constants: {AddressZero} } = require('ethers');
+const { getDefaultProvider, Contract, Wallet, constants: {AddressZero} } = require('ethers');
 const { expect } = chai;
-const { keccak256, defaultAbiCoder, RLP, getContractAddress } = require('ethers/lib/utils');
+const { keccak256, defaultAbiCoder, RLP } = require('ethers/lib/utils');
 const { setJSON } = require('@axelar-network/axelar-local-dev/dist/utils');
 require('dotenv').config();
 
 const ERC20MintableBurnable = require('../artifacts/@axelar-network/axelar-gmp-sdk-solidity/contracts/test/ERC20MintableBurnable.sol/ERC20MintableBurnable.json');
 const ITokenLinker = require('../artifacts/contracts/interfaces/IInterchainTokenLinker.sol/IInterchainTokenLinker.json');
 const IERC20 = require('../artifacts/contracts/interfaces/IERC20.sol/IERC20.json');
-const TokenLinker = require('../artifacts/contracts/InterchainTokenLinker.sol/InterchainTokenLinker.json');
-const TokenDeployer = require('../artifacts/contracts/TokenDeployer.sol/TokenDeployer.json');
-const TokenLinkerExecutableTest = require('../artifacts/contracts/test/TokenLinkerExecutableTest.sol/TokenLinkerExecutableTest.json');
-const TokenLinkerProxy = require('../artifacts/contracts/proxies/InterchainTokenLinkerProxy.sol/InterchainTokenLinkerProxy.json');
-const LinkerRouterProxy = require('../artifacts/contracts/proxies/LinkerRouterProxy.sol/LinkerRouterProxy.json');
 const LinkerRouter = require('../artifacts/contracts/LinkerRouter.sol/LinkerRouter.json');
 const IAxelarGasService = require('@axelar-network/axelar-gmp-sdk-solidity/artifacts/contracts/interfaces/IAxelarGasService.sol/IAxelarGasService.json');
-const AddressBytesUtils = require('../artifacts/contracts/libraries/AddressBytesUtils.sol/AddressBytesUtils.json')
 const { deployContract } = require('@axelar-network/axelar-gmp-sdk-solidity/scripts/utils');
-const { predictContractConstant, deployUpgradable, deployAndInitContractConstant } = require('@axelar-network/axelar-gmp-sdk-solidity');
 const { createAndExport, networks } = require('@axelar-network/axelar-local-dev');
+const { deployTokenLinker } = require('../scripts/deploy.js');
+const { deployRemoteTokens, registerOriginToken } = require('../scripts/register');
 
 let chains;
 let wallet;
@@ -41,37 +36,6 @@ async function deployToken(chain, walletUnconnected, name = 'Subnet Token', symb
     return contract;
 }
 
-async function deployTokenLinker(chain) {
-    const provider = getDefaultProvider(chain.rpc);
-    const walletConnected = wallet.connect(provider);
-    const ravAddress = await predictContractConstant(chain.constAddressDeployer, walletConnected, LinkerRouterProxy, 'linkerRouter', []);
-
-    const tokenDeployer = await deployContract(walletConnected, TokenDeployer);
-    const tl = await deployUpgradable(
-        chain.constAddressDeployer,
-        walletConnected,
-        TokenLinker,
-        TokenLinkerProxy,
-        [chain.gateway, chain.gasService, ravAddress, tokenDeployer.address, chain.name],
-        [],
-        [],
-        'tokenLinker',
-    );
-    const linkerRouter = await deployUpgradable(
-        chain.constAddressDeployer,
-        walletConnected,
-        LinkerRouter,
-        LinkerRouterProxy,
-        [tl.address, [], []], 
-        [],
-        [],
-        'linkerRouter',
-    );
-
-    chain.tokenLinker = tl.address;
-    chain.linkerRouter = linkerRouter.address;
-}
-
 describe('Token Linker', () => {
     before(async () => {
         const deployer_key = keccak256(
@@ -88,7 +52,7 @@ describe('Token Linker', () => {
         chains[0].gatewayToken = (await deployToken(chains[0], wallet, 'gateway token', 'GT', 6)).address;
         for(const chain of chains) {
             chain.token = (await deployToken(chain, wallet)).address;
-            await deployTokenLinker(chain);
+            await deployTokenLinker(chain, wallet);
             const network = networks.find(network => network.name == chain.name);
             if(chain == chains[0]) {
                 await network.deployToken('gateway token', 'GT', 6, BigInt(1e18), chain.gatewayToken);
@@ -111,8 +75,7 @@ describe('Token Linker', () => {
     it(`Should Register a Token`, async () => {
         const origin = chains[0];
         
-        await (await origin.tl.registerOriginToken(origin.token)).wait();
-        const tokenId = await origin.tl.getOriginTokenId(origin.token);
+        const tokenId = await registerOriginToken(origin, wallet, origin.token);
         const address = await origin.tl.getTokenAddress(tokenId);
         expect(address).to.equal(origin.token);
     });
@@ -121,7 +84,8 @@ describe('Token Linker', () => {
         const destination = chains[1];
 
         const tokenId = await origin.tl.getOriginTokenId(origin.token);
-        const receipt = await (await origin.tl.deployRemoteTokens(tokenId, [destination.name], [1e7], {value: 1e7})).wait();
+        await deployRemoteTokens(origin, wallet, tokenId, [destination.name], [1e7]);
+        
         await new Promise((resolve) => {
             setTimeout(() => {
                 resolve();
@@ -140,9 +104,7 @@ describe('Token Linker', () => {
         const tokenId = await origin.tl.getOriginTokenId(origin.token);
         await (await origin.tl.sendToken(tokenId, destination.name, wallet.address, amount, {value: 1e6})).wait();
         await new Promise((resolve) => {
-            setTimeout(() => {
-                resolve();
-            }, 500);
+            setTimeout(resolve, 500);
         });
         const tokenAddr = await destination.tl.getTokenAddress(tokenId)
         const token = new Contract(tokenAddr, IERC20.abi, destination.walletConnected);
@@ -224,39 +186,41 @@ describe('Token Linker', () => {
     it(`Should deploy an interchain token and deploy a remote token in one go`, async() => {
         const origin = chains[1];
         const destination = chains[2];
-        const receipt = await (await origin.tl.deployInterchainToken(
+        await (await origin.tl.deployInterchainToken(
             'Interchain Token',
             'IT',
             18,
             0,
             origin.walletConnected.address,
-            keccak256('0x01234567'),
+            keccak256('0x012345675748594069'),
             [destination.name], 
             [1e7], 
             {value: 1e7}
         )).wait();
         
-        const filter = origin.tl.filter.TokenRegistered();
-        const logs = origin.tl.querryFilter(filter);
-        constle.log(logs);
+        const filter = origin.tl.filters.TokenRegistered();
+        const logs = await origin.tl.queryFilter(filter);
+        const tokenId = logs[logs.length - 1].args.tokenId;
+        const tokenAddress = logs[logs.length - 1].args.tokenAddress;
+
+        origin.iTok = new Contract(tokenAddress, ERC20MintableBurnable.abi, origin.walletConnected);
 
         await new Promise((resolve) => {
             setTimeout(() => {
                 resolve();
             }, 500);
         });
-        const tokenId = await origin.tl.getOriginTokenId(origin.token);
         expect(await destination.tl.getTokenAddress(tokenId)).to.not.equal(AddressZero);
     });
-    it.skip(`Should send some token from origin to destination`, async() => {
+    it(`Should send some token from origin to destination`, async() => {
         const origin = chains[1];
         const destination = chains[2];
         const amount = 1e6;
 
-        await (await origin.tok.mint(wallet.address, amount)).wait();
-        await (await origin.tok.approve(origin.tl.address, amount)).wait();
+        await (await origin.iTok.mint(wallet.address, amount)).wait();
+        await (await origin.iTok.approve(origin.tl.address, amount)).wait();
 
-        const tokenId = await origin.tl.getOriginTokenId(origin.token);
+        const tokenId = await origin.tl.getTokenId(origin.iTok.address);
         await (await origin.tl.sendToken(tokenId, destination.name, wallet.address, amount, {value: 1e6})).wait();
         await new Promise((resolve) => {
             setTimeout(() => {
@@ -267,12 +231,12 @@ describe('Token Linker', () => {
         const token = new Contract(tokenAddr, IERC20.abi, destination.walletConnected);
         expect(Number(await token.balanceOf(wallet.address))).to.equal(amount);
     });
-    it.skip(`Should send some token back`, async() => {
+    it(`Should send some token back`, async() => {
         const origin = chains[1];
         const destination = chains[2];
         const amount = 1e6;
 
-        const tokenId = await origin.tl.getOriginTokenId(origin.token);
+        const tokenId = await origin.tl.getTokenId(origin.iTok.address);
         const tokenAddr = await destination.tl.getTokenAddress(tokenId)
         const token = new Contract(tokenAddr, IERC20.abi, destination.walletConnected);
         await (await token.approve(destination.tl.address, amount)).wait();
@@ -284,7 +248,7 @@ describe('Token Linker', () => {
             }, 500);
         });
         
-        expect(Number(await origin.tok.balanceOf(wallet.address))).to.equal(amount);
+        expect(Number(await origin.iTok.balanceOf(wallet.address))).to.equal(amount);
     });
 
     it('Should Register some chains as gateway supported.', async () => {

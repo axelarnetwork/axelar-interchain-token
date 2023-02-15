@@ -52,8 +52,8 @@ interface IInterchainTokenLinker {
     function getOriginTokenId(address tokenAddress) external view returns (bytes32 tokenId);
 
     function deployInterchainToken(
-        string memory tokenName,
-        string memory tokenSymbol,
+        string calldata tokenName,
+        string calldata tokenSymbol,
         uint8 decimals,
         uint256 cap,
         address owner,
@@ -90,9 +90,9 @@ interface IInterchainTokenLinker {
 
     function selfDeployToken(
         bytes32 tokenId,
-        string calldata origin,
-        string memory tokenName,
-        string memory tokenSymbol,
+        string memory origin,
+        string calldata tokenName,
+        string calldata tokenSymbol,
         uint8 decimals,
         bool isGateway
     ) external;

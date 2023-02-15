@@ -13,6 +13,7 @@ import { IInterchainTokenLinker } from './interfaces/IInterchainTokenLinker.sol'
 import { IInterTokenExecutable } from './interfaces/IInterTokenExecutable.sol';
 import { ILinkerRouter } from './interfaces/ILinkerRouter.sol';
 import { ITokenDeployer } from './interfaces/ITokenDeployer.sol';
+import { TokenDeployer } from './TokenDeployer.sol';
 import { Upgradable } from '@axelar-network/axelar-gmp-sdk-solidity/contracts/upgradables/Upgradable.sol';
 
 import { LinkedTokenData } from './libraries/LinkedTokenData.sol';
@@ -151,7 +152,7 @@ contract InterchainTokenLinker is IInterchainTokenLinker, AxelarExecutable, Upgr
         uint256[] calldata gasValues
     ) external payable {
         salt = keccak256(abi.encode(msg.sender, salt));
-        address tokenAddress = _deployToken(tokenName, tokenSymbol, decimals, cap, salt, owner);
+        address tokenAddress = this.selfDeployOriginToken(owner, salt, tokenName, tokenSymbol, decimals, cap);
         (bytes32 tokenId, bytes32 tokenData) = _registerToken(tokenAddress);
         string memory symbol = _deployRemoteTokens(destinationChains, gasValues, tokenId, tokenData);
         if (gateway.tokenAddresses(symbol) == tokenAddress) revert GatewayToken();
@@ -257,9 +258,9 @@ contract InterchainTokenLinker is IInterchainTokenLinker, AxelarExecutable, Upgr
 
     function selfDeployToken(
         bytes32 tokenId,
-        string calldata origin,
-        string memory tokenName,
-        string memory tokenSymbol,
+        string memory origin,
+        string calldata tokenName,
+        string calldata tokenSymbol,
         uint8 decimals,
         bool isGateway
     ) public onlySelf {
@@ -282,6 +283,18 @@ contract InterchainTokenLinker is IInterchainTokenLinker, AxelarExecutable, Upgr
         _setTokenId(tokenAddress, tokenId);
         _setOriginalChain(tokenId, origin);
         emit TokenRegistered(tokenId, tokenAddress, false, false, isGateway);
+    }
+
+    // This is only destinationaddress be called destinationaddress fix a weird bug where if we call _deployToken directly it reverts.
+    function selfDeployOriginToken(
+        address owner,
+        bytes32 tokenId,
+        string memory tokenName,
+        string memory tokenSymbol,
+        uint8 decimals,
+        uint256 cap
+    ) external onlySelf returns (address tokenAddress) {
+        tokenAddress = _deployToken(tokenName, tokenSymbol, decimals, cap, tokenId, owner);
     }
 
     function selfGiveToken(bytes32 tokenId, bytes calldata destinationAddress, uint256 amount) public onlySelf {
@@ -367,14 +380,13 @@ contract InterchainTokenLinker is IInterchainTokenLinker, AxelarExecutable, Upgr
         bytes32 salt,
         address owner
     ) internal returns (address tokenAddress) {
-        (bool success, bytes memory data) = address(tokenDeployer).delegatecall(
-            abi.encodeWithSelector(tokenDeployer.deployToken.selector, tokenName, tokenSymbol, decimals, cap, salt)
+        (bool success, bytes memory data) = address(tokenDeployer).delegatecall(abi.encodeWithSelector(
+            tokenDeployer.deployToken.selector, owner, tokenName, tokenSymbol, decimals, cap, salt)
         );
         if (!success) revert('TokenDeploymentFailed()');
         tokenAddress = abi.decode(data, (address));
-        if (owner != address(this)) {
-            Upgradable(tokenAddress).transferOwnership(owner);
-        }
+        //tokenAddress = tokenDeployer.deployToken(owner, tokenName, tokenSymbol, decimals, cap, salt);
+
         emit TokenDeployed(tokenAddress, tokenName, tokenSymbol, decimals, cap, owner);
     }
 
@@ -385,33 +397,33 @@ contract InterchainTokenLinker is IInterchainTokenLinker, AxelarExecutable, Upgr
         decimals = token.decimals();
     }
 
-    function _sendToken(bytes32 tokenId, string calldata destinationChain, bytes calldata to, uint256 amount) internal {
+    function _sendToken(bytes32 tokenId, string calldata destinationChain, bytes calldata destinationaddress, uint256 amount) internal {
         bytes32 tokenData = getTokenData(tokenId);
         bytes memory payload;
         if (tokenData.isGateway()) {
             if (linkerRouter.supportedByGateway(destinationChain)) {
-                payload = abi.encodeWithSelector(this.selfGiveToken.selector, tokenId, to, amount);
+                payload = abi.encodeWithSelector(this.selfGiveToken.selector, tokenId, destinationaddress, amount);
                 _callContractWithToken(destinationChain, tokenData, amount, payload);
             } else if (tokenData.isOrigin()) {
-                payload = abi.encodeWithSelector(this.selfGiveToken.selector, tokenId, to, amount);
+                payload = abi.encodeWithSelector(this.selfGiveToken.selector, tokenId, destinationaddress, amount);
                 _callContract(destinationChain, payload, msg.value);
             } else {
-                payload = abi.encodeWithSelector(this.selfSendToken.selector, tokenId, destinationChain, to, amount);
+                payload = abi.encodeWithSelector(this.selfSendToken.selector, tokenId, destinationChain, destinationaddress, amount);
                 _callContractWithToken(getOriginalChain(tokenId), tokenData, amount, payload);
             }
         } else if (tokenData.isRemoteGateway()) {
             if (keccak256(bytes(destinationChain)) == keccak256(bytes(getOriginalChain(tokenId)))) {
-                payload = abi.encodeWithSelector(this.selfGiveToken.selector, tokenId, to, amount);
+                payload = abi.encodeWithSelector(this.selfGiveToken.selector, tokenId, destinationaddress, amount);
                 _callContract(destinationChain, payload, msg.value);
             } else {
-                payload = abi.encodeWithSelector(this.selfSendToken.selector, tokenId, destinationChain, to, amount);
+                payload = abi.encodeWithSelector(this.selfSendToken.selector, tokenId, destinationChain, destinationaddress, amount);
                 _callContract(getOriginalChain(tokenId), payload, msg.value);
             }
         } else {
-            payload = abi.encodeWithSelector(this.selfGiveToken.selector, tokenId, to, amount);
+            payload = abi.encodeWithSelector(this.selfGiveToken.selector, tokenId, destinationaddress, amount);
             _callContract(destinationChain, payload, msg.value);
         }
-        emit Sending(destinationChain, to, amount);
+        emit Sending(destinationChain, destinationaddress, amount);
     }
 
     function _sendTokenWithData(
@@ -419,7 +431,7 @@ contract InterchainTokenLinker is IInterchainTokenLinker, AxelarExecutable, Upgr
         string memory sourceChain,
         bytes memory sourceAddress,
         string calldata destinationChain,
-        bytes calldata to,
+        bytes calldata destinationaddress,
         uint256 amount,
         bytes calldata data
     ) internal {
@@ -432,7 +444,7 @@ contract InterchainTokenLinker is IInterchainTokenLinker, AxelarExecutable, Upgr
                     tokenId,
                     sourceChain,
                     sourceAddress,
-                    to,
+                    destinationaddress,
                     amount,
                     data
                 );
@@ -443,7 +455,7 @@ contract InterchainTokenLinker is IInterchainTokenLinker, AxelarExecutable, Upgr
                     tokenId,
                     sourceChain,
                     sourceAddress,
-                    to,
+                    destinationaddress,
                     amount,
                     data
                 );
@@ -455,7 +467,7 @@ contract InterchainTokenLinker is IInterchainTokenLinker, AxelarExecutable, Upgr
                     sourceChain,
                     sourceAddress,
                     destinationChain,
-                    to,
+                    destinationaddress,
                     amount,
                     data
                 );
@@ -468,7 +480,7 @@ contract InterchainTokenLinker is IInterchainTokenLinker, AxelarExecutable, Upgr
                     tokenId,
                     sourceChain,
                     sourceAddress,
-                    to,
+                    destinationaddress,
                     amount,
                     data
                 );
@@ -480,17 +492,17 @@ contract InterchainTokenLinker is IInterchainTokenLinker, AxelarExecutable, Upgr
                     sourceChain,
                     sourceAddress,
                     destinationChain,
-                    to,
+                    destinationaddress,
                     amount,
                     data
                 );
                 _callContract(getOriginalChain(tokenId), payload, msg.value);
             }
         } else {
-            payload = abi.encodeWithSelector(this.selfGiveTokenWithData.selector, tokenId, sourceChain, sourceAddress, to, amount, data);
+            payload = abi.encodeWithSelector(this.selfGiveTokenWithData.selector, tokenId, sourceChain, sourceAddress, destinationaddress, amount, data);
             _callContract(destinationChain, payload, msg.value);
         }
-        emit SendingWithData(destinationChain, to, amount, msg.sender, data);
+        emit SendingWithData(destinationChain, destinationaddress, amount, msg.sender, data);
     }
 
     function _callContract(string memory destinationChain, bytes memory payload, uint256 gasValue) internal {
@@ -526,8 +538,8 @@ contract InterchainTokenLinker is IInterchainTokenLinker, AxelarExecutable, Upgr
         gateway.callContractWithToken(destinationChain, destinationAddress, payload, symbol, amount);
     }
 
-    function _transfer(address tokenAddress, address to, uint256 amount) internal {
-        (bool success, bytes memory returnData) = tokenAddress.call(abi.encodeWithSelector(IERC20.transfer.selector, to, amount));
+    function _transfer(address tokenAddress, address destinationaddress, uint256 amount) internal {
+        (bool success, bytes memory returnData) = tokenAddress.call(abi.encodeWithSelector(IERC20.transfer.selector, destinationaddress, amount));
         bool transferred = success && (returnData.length == uint256(0) || abi.decode(returnData, (bool)));
 
         if (!transferred || tokenAddress.code.length == 0) revert TransferFailed();
@@ -542,8 +554,8 @@ contract InterchainTokenLinker is IInterchainTokenLinker, AxelarExecutable, Upgr
         if (!transferred || tokenAddress.code.length == 0) revert TransferFromFailed();
     }
 
-    function _mint(address tokenAddress, address to, uint256 amount) internal {
-        (bool success, ) = tokenAddress.call(abi.encodeWithSelector(IMintableCappedERC20.mint.selector, to, amount));
+    function _mint(address tokenAddress, address destinationaddress, uint256 amount) internal {
+        (bool success, ) = tokenAddress.call(abi.encodeWithSelector(IMintableCappedERC20.mint.selector, destinationaddress, amount));
 
         if (!success || tokenAddress.code.length == 0) revert MintFailed();
     }
@@ -554,16 +566,16 @@ contract InterchainTokenLinker is IInterchainTokenLinker, AxelarExecutable, Upgr
         if (!success || tokenAddress.code.length == 0) revert BurnFailed();
     }
 
-    function _giveToken(bytes32 tokenId, address to, uint256 amount) internal {
+    function _giveToken(bytes32 tokenId, address destinationaddress, uint256 amount) internal {
         _setTokenMintAmount(tokenId, getTokenMintAmount(tokenId) + amount);
 
         bytes32 tokenData = getTokenData(tokenId);
         address tokenAddress = tokenData.getAddress();
 
         if (tokenData.isOrigin() || tokenData.isGateway()) {
-            _transfer(tokenAddress, to, amount);
+            _transfer(tokenAddress, destinationaddress, amount);
         } else {
-            _mint(tokenAddress, to, amount);
+            _mint(tokenAddress, destinationaddress, amount);
         }
     }
 
@@ -579,7 +591,7 @@ contract InterchainTokenLinker is IInterchainTokenLinker, AxelarExecutable, Upgr
 
     function _giveTokenWithData(
         bytes32 tokenId,
-        address to,
+        address destinationaddress,
         uint256 amount,
         string calldata sourceChain,
         bytes memory sourceAddress,
@@ -590,10 +602,10 @@ contract InterchainTokenLinker is IInterchainTokenLinker, AxelarExecutable, Upgr
         bytes32 tokenData = getTokenData(tokenId);
         address tokenAddress = tokenData.getAddress();
         if (tokenData.isOrigin() || tokenData.isGateway()) {
-            _transfer(tokenAddress, to, amount);
+            _transfer(tokenAddress, destinationaddress, amount);
         } else {
-            _mint(tokenAddress, to, amount);
+            _mint(tokenAddress, destinationaddress, amount);
         }
-        IInterTokenExecutable(to).exectuteWithInterToken(tokenAddress, sourceChain, sourceAddress, amount, data);
+        IInterTokenExecutable(destinationaddress).exectuteWithInterToken(tokenAddress, sourceChain, sourceAddress, amount, data);
     }
 }
