@@ -152,7 +152,7 @@ contract InterchainTokenLinker is IInterchainTokenLinker, AxelarExecutable, Upgr
         uint256[] calldata gasValues
     ) external payable {
         salt = keccak256(abi.encode(msg.sender, salt));
-        address tokenAddress = this.selfDeployOriginToken(owner, salt, tokenName, tokenSymbol, decimals, cap);
+        address tokenAddress = _deployToken(tokenName, tokenSymbol, decimals, cap, salt, owner);
         (bytes32 tokenId, bytes32 tokenData) = _registerToken(tokenAddress);
         string memory symbol = _deployRemoteTokens(destinationChains, gasValues, tokenId, tokenData);
         if (gateway.tokenAddresses(symbol) == tokenAddress) revert GatewayToken();
@@ -283,18 +283,6 @@ contract InterchainTokenLinker is IInterchainTokenLinker, AxelarExecutable, Upgr
         _setTokenId(tokenAddress, tokenId);
         _setOriginalChain(tokenId, origin);
         emit TokenRegistered(tokenId, tokenAddress, false, false, isGateway);
-    }
-
-    // This is only destinationaddress be called destinationaddress fix a weird bug where if we call _deployToken directly it reverts.
-    function selfDeployOriginToken(
-        address owner,
-        bytes32 tokenId,
-        string memory tokenName,
-        string memory tokenSymbol,
-        uint8 decimals,
-        uint256 cap
-    ) external onlySelf returns (address tokenAddress) {
-        tokenAddress = _deployToken(tokenName, tokenSymbol, decimals, cap, tokenId, owner);
     }
 
     function selfGiveToken(bytes32 tokenId, bytes calldata destinationAddress, uint256 amount) public onlySelf {
