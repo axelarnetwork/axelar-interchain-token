@@ -52,7 +52,7 @@ async function deployTokenLinker(chain) {
         walletConnected,
         TokenLinker,
         TokenLinkerProxy,
-        [chain.gateway, chain.gasReceiver, ravAddress, tokenDeployer.address, chain.name],
+        [chain.gateway, chain.gasService, ravAddress, tokenDeployer.address, chain.name],
         [],
         [],
         'tokenLinker',
@@ -221,6 +221,72 @@ describe('Token Linker', () => {
         expect(Number(await origin.tok.balanceOf(wallet.address))).to.equal(amount);
     });
 
+    it(`Should deploy an interchain token and deploy a remote token in one go`, async() => {
+        const origin = chains[1];
+        const destination = chains[2];
+        const receipt = await (await origin.tl.deployInterchainToken(
+            'Interchain Token',
+            'IT',
+            18,
+            0,
+            origin.walletConnected.address,
+            keccak256('0x01234567'),
+            [destination.name], 
+            [1e7], 
+            {value: 1e7}
+        )).wait();
+        
+        const filter = origin.tl.filter.TokenRegistered();
+        const logs = origin.tl.querryFilter(filter);
+        constle.log(logs);
+
+        await new Promise((resolve) => {
+            setTimeout(() => {
+                resolve();
+            }, 500);
+        });
+        const tokenId = await origin.tl.getOriginTokenId(origin.token);
+        expect(await destination.tl.getTokenAddress(tokenId)).to.not.equal(AddressZero);
+    });
+    it.skip(`Should send some token from origin to destination`, async() => {
+        const origin = chains[1];
+        const destination = chains[2];
+        const amount = 1e6;
+
+        await (await origin.tok.mint(wallet.address, amount)).wait();
+        await (await origin.tok.approve(origin.tl.address, amount)).wait();
+
+        const tokenId = await origin.tl.getOriginTokenId(origin.token);
+        await (await origin.tl.sendToken(tokenId, destination.name, wallet.address, amount, {value: 1e6})).wait();
+        await new Promise((resolve) => {
+            setTimeout(() => {
+                resolve();
+            }, 500);
+        });
+        const tokenAddr = await destination.tl.getTokenAddress(tokenId)
+        const token = new Contract(tokenAddr, IERC20.abi, destination.walletConnected);
+        expect(Number(await token.balanceOf(wallet.address))).to.equal(amount);
+    });
+    it.skip(`Should send some token back`, async() => {
+        const origin = chains[1];
+        const destination = chains[2];
+        const amount = 1e6;
+
+        const tokenId = await origin.tl.getOriginTokenId(origin.token);
+        const tokenAddr = await destination.tl.getTokenAddress(tokenId)
+        const token = new Contract(tokenAddr, IERC20.abi, destination.walletConnected);
+        await (await token.approve(destination.tl.address, amount)).wait();
+        await (await destination.tl.sendToken(tokenId, origin.name, wallet.address, amount, {value: 1e6})).wait();
+
+        await new Promise((resolve) => {
+            setTimeout(() => {
+                resolve();
+            }, 500);
+        });
+        
+        expect(Number(await origin.tok.balanceOf(wallet.address))).to.equal(amount);
+    });
+
     it('Should Register some chains as gateway supported.', async () => {
         const origin = chains[0];
         const destination = chains[1];
@@ -289,7 +355,7 @@ describe('Token Linker', () => {
                 await (await token1.approve(source.tokenLinker, amount)).wait();
                 if(i+j==3) {
                     const payload = (await origin.tl.populateTransaction.selfGiveToken(tokenId, wallet.address, amount)).data;
-                    const gasService = new Contract(origin.gasReceiver, IAxelarGasService.abi, origin.walletConnected);
+                    const gasService = new Contract(origin.gasService, IAxelarGasService.abi, origin.walletConnected);
                     if(i == 1) {
                         await (await gasService.payNativeGasForContractCall(
                             origin.tokenLinker,

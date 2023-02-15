@@ -15,9 +15,11 @@ library LinkedTokenData {
     function isOrigin(bytes32 tokenData) internal pure returns (bool) {
         return tokenData & IS_ORIGIN_MASK == IS_ORIGIN_MASK;
     }
+
     function isGateway(bytes32 tokenData) internal pure returns (bool) {
         return tokenData & IS_GATEWAY_MASK == IS_GATEWAY_MASK;
     }
+
     function isRemoteGateway(bytes32 tokenData) internal pure returns (bool) {
         return tokenData & IS_REMOTE_GATEWAY_MASK == IS_REMOTE_GATEWAY_MASK;
     }
@@ -35,19 +37,18 @@ library LinkedTokenData {
         }
     }
 
-
     function createTokenData(address tokenAddress, bool origin) internal pure returns (bytes32 tokenData) {
         tokenData = bytes32(uint256(uint160(tokenAddress)));
         if (origin) tokenData |= IS_ORIGIN_MASK;
     }
 
-
     error SymbolTooLong();
+
     function createGatewayTokenData(address tokenAddress, bool origin, string memory symbol) internal pure returns (bytes32 tokenData) {
         tokenData = bytes32(uint256(uint160(tokenAddress))) | IS_GATEWAY_MASK;
         if (origin) tokenData |= IS_ORIGIN_MASK;
         uint256 length = bytes(symbol).length;
-        if(length > 11) revert SymbolTooLong();
+        if (length > 11) revert SymbolTooLong();
 
         tokenData |= bytes32(length) << 248;
         bytes32 symbolData = bytes32(bytes(symbol)) >> 8;

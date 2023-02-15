@@ -27,12 +27,7 @@ interface ITokenLinkerFactory {
 
     function tokenLinkerType(bytes32 id) external view returns (uint256 tlt);
 
-    function deploy(
-        uint256 tlt,
-        bytes32 salt,
-        bytes calldata params,
-        bool factoryManaged
-    ) external;
+    function deploy(uint256 tlt, bytes32 salt, bytes calldata params, bool factoryManaged) external;
 
     function tokenLinker(bytes32 id, bool factoryManaged) external view returns (address tokenLinkerAddress);
 

@@ -14,15 +14,11 @@ contract LinkerRouter is ILinkerRouter, Upgradable {
     mapping(string => string) public remoteAddresses;
     address public immutable tokenLinkerAddress;
     mapping(string => bool) public supportedByGateway;
-    
+
     // bytes32(uint256(keccak256('remote-address-validator')) - 1)
     bytes32 public constant override contractId = 0x5d9f4d5e6bb737c289f92f2a319c66ba484357595194acb7c2122e48550eda7c;
 
-    constructor(
-        address tokenLinkerAddress_,
-        string[] memory trustedChainNames,
-        string[] memory trustedAddresses
-    ) {
+    constructor(address tokenLinkerAddress_, string[] memory trustedChainNames, string[] memory trustedAddresses) {
         if (tokenLinkerAddress_ == address(0)) revert ZeroAddress();
         tokenLinkerAddress = tokenLinkerAddress_;
         uint256 length = trustedChainNames.length;
@@ -53,7 +49,7 @@ contract LinkerRouter is ILinkerRouter, Upgradable {
         string memory sourceAddressLC = _lowerCase(sourceAddress);
         bytes32 sourceAddressHash = keccak256(bytes(sourceAddressLC));
         bytes32 remoteAddressHash = remoteAddressHashes[sourceChain];
-        if(remoteAddressHash == bytes32(0)) {
+        if (remoteAddressHash == bytes32(0)) {
             if (sourceAddressHash == addressHash) return true;
         } else {
             if (sourceAddressHash == remoteAddressHash) return true;
@@ -73,14 +69,14 @@ contract LinkerRouter is ILinkerRouter, Upgradable {
 
     function addGatewaySupportedChains(string[] calldata chainNames) external onlyOwner {
         uint256 length = chainNames.length;
-        for(uint256 i; i<length; ++i) {
+        for (uint256 i; i < length; ++i) {
             supportedByGateway[chainNames[i]] = true;
         }
     }
 
     function removeGatewaySupportedChains(string[] calldata chainNames) external onlyOwner {
         uint256 length = chainNames.length;
-        for(uint256 i; i<length; ++i) {
+        for (uint256 i; i < length; ++i) {
             supportedByGateway[chainNames[i]] = false;
         }
     }
