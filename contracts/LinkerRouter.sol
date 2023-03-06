@@ -2,8 +2,8 @@
 
 pragma solidity 0.8.9;
 import { ILinkerRouter } from './interfaces/ILinkerRouter.sol';
-import { StringToAddress, AddressToString } from '@axelar-network/axelar-gmp-sdk-solidity/contracts/StringAddressUtils.sol';
-import { Upgradable } from '@axelar-network/axelar-gmp-sdk-solidity/contracts/upgradables/Upgradable.sol';
+import { StringToAddress, AddressToString } from '@axelar-network/axelar-gmp-sdk-solidity/contracts/utils/AddressString.sol';
+import { Upgradable } from '@axelar-network/axelar-gmp-sdk-solidity/contracts/upgradable/Upgradable.sol';
 
 contract LinkerRouter is ILinkerRouter, Upgradable {
     using StringToAddress for string;
@@ -23,7 +23,7 @@ contract LinkerRouter is ILinkerRouter, Upgradable {
         tokenLinkerAddress = tokenLinkerAddress_;
         uint256 length = trustedChainNames.length;
         if (length != trustedAddresses.length) revert LengthMismatch();
-        addressHash = keccak256(bytes(tokenLinkerAddress.toString()));
+        addressHash = keccak256(bytes(_lowerCase(tokenLinkerAddress.toString())));
         for (uint256 i; i < length; ++i) {
             string memory chainName = trustedChainNames[i];
             if (bytes(chainName).length == 0) revert ZeroStringLength();

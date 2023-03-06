@@ -2,23 +2,23 @@
 
 pragma solidity 0.8.9;
 
-import { AxelarExecutable } from '@axelar-network/axelar-gmp-sdk-solidity/contracts/executables/AxelarExecutable.sol';
+import { AxelarExecutable } from '@axelar-network/axelar-gmp-sdk-solidity/contracts/executable/AxelarExecutable.sol';
 import { IAxelarGateway } from '@axelar-network/axelar-gmp-sdk-solidity/contracts/interfaces/IAxelarGateway.sol';
-import { IAxelarGasService } from '@axelar-network/axelar-cgp-solidity/contracts/interfaces/IAxelarGasService.sol';
-import { IERC20 } from './interfaces/IERC20.sol';
-import { IBurnableMintableCappedERC20 } from '@axelar-network/axelar-cgp-solidity/contracts/interfaces/IBurnableMintableCappedERC20.sol';
-import { IMintableCappedERC20 } from '@axelar-network/axelar-cgp-solidity/contracts/interfaces/IMintableCappedERC20.sol';
+import { IAxelarGasService } from '@axelar-network/axelar-gmp-sdk-solidity/contracts/interfaces/IAxelarGasService.sol';
+import { IERC20Named } from './interfaces/IERC20Named.sol';
+import { IERC20 } from '@axelar-network/axelar-gmp-sdk-solidity/contracts/interfaces/IERC20.sol';
+import { IERC20BurnableMintableCapped } from './interfaces/IERC20BurnableMintableCapped.sol';
 
 import { IInterchainTokenLinker } from './interfaces/IInterchainTokenLinker.sol';
 import { IInterTokenExecutable } from './interfaces/IInterTokenExecutable.sol';
 import { ILinkerRouter } from './interfaces/ILinkerRouter.sol';
 import { ITokenDeployer } from './interfaces/ITokenDeployer.sol';
 import { TokenDeployer } from './TokenDeployer.sol';
-import { Upgradable } from '@axelar-network/axelar-gmp-sdk-solidity/contracts/upgradables/Upgradable.sol';
+import { Upgradable } from '@axelar-network/axelar-gmp-sdk-solidity/contracts/upgradable/Upgradable.sol';
 
 import { LinkedTokenData } from './libraries/LinkedTokenData.sol';
 import { AddressBytesUtils } from './libraries/AddressBytesUtils.sol';
-import { StringToBytes32, Bytes32ToString } from '@axelar-network/axelar-gmp-sdk-solidity/contracts/StringBytesUtils.sol';
+import { StringToBytes32, Bytes32ToString } from '@axelar-network/axelar-gmp-sdk-solidity/contracts/utils/Bytes32String.sol';
 
 import { EternalStorage } from '@axelar-network/axelar-cgp-solidity/contracts/EternalStorage.sol';
 
@@ -152,7 +152,7 @@ contract InterchainTokenLinker is IInterchainTokenLinker, AxelarExecutable, Upgr
         uint256[] calldata gasValues
     ) external payable {
         salt = keccak256(abi.encode(msg.sender, salt));
-        address tokenAddress = _deployToken(tokenName, tokenSymbol, decimals, cap, salt, owner);
+        address tokenAddress = _deployToken(tokenName, tokenSymbol, decimals, cap, owner, salt);
         (bytes32 tokenId, bytes32 tokenData) = _registerToken(tokenAddress);
         string memory symbol = _deployRemoteTokens(destinationChains, gasValues, tokenId, tokenData);
         if (gateway.tokenAddresses(symbol) == tokenAddress) revert GatewayToken();
@@ -274,7 +274,7 @@ contract InterchainTokenLinker is IInterchainTokenLinker, AxelarExecutable, Upgr
                 revert AlreadyRegistered();
             }
         }
-        address tokenAddress = _deployToken(tokenName, tokenSymbol, decimals, 0, tokenId, address(this));
+        address tokenAddress = _deployToken(tokenName, tokenSymbol, decimals, 0, address(this), tokenId);
         if (isGateway) {
             _setTokenData(tokenId, LinkedTokenData.createRemoteGatewayTokenData(tokenAddress));
         } else {
@@ -365,13 +365,15 @@ contract InterchainTokenLinker is IInterchainTokenLinker, AxelarExecutable, Upgr
         string memory tokenSymbol,
         uint8 decimals,
         uint256 cap,
-        bytes32 salt,
-        address owner
+        address owner,
+        bytes32 salt
     ) internal returns (address tokenAddress) {
         (bool success, bytes memory data) = address(tokenDeployer).delegatecall(abi.encodeWithSelector(
-            tokenDeployer.deployToken.selector, owner, tokenName, tokenSymbol, decimals, cap, salt)
-        );
-        if (!success) revert('TokenDeploymentFailed()');
+            tokenDeployer.deployToken.selector, 
+            abi.encode(tokenName, tokenSymbol, decimals, cap, owner),
+            salt
+        ));
+        if (!success) revert TokenDeploymentFailed();
         tokenAddress = abi.decode(data, (address));
         //tokenAddress = tokenDeployer.deployToken(owner, tokenName, tokenSymbol, decimals, cap, salt);
 
@@ -379,7 +381,7 @@ contract InterchainTokenLinker is IInterchainTokenLinker, AxelarExecutable, Upgr
     }
 
     function _validateOriginToken(address tokenAddress) internal returns (string memory name, string memory symbol, uint8 decimals) {
-        IERC20 token = IERC20(tokenAddress);
+        IERC20Named token = IERC20Named(tokenAddress);
         name = token.name();
         symbol = token.symbol();
         decimals = token.decimals();
@@ -522,7 +524,7 @@ contract InterchainTokenLinker is IInterchainTokenLinker, AxelarExecutable, Upgr
                 msg.sender
             );
         }
-        IERC20(tokenData.getAddress()).approve(address(gateway), amount);
+        IERC20Named(tokenData.getAddress()).approve(address(gateway), amount);
         gateway.callContractWithToken(destinationChain, destinationAddress, payload, symbol, amount);
     }
 
@@ -543,13 +545,13 @@ contract InterchainTokenLinker is IInterchainTokenLinker, AxelarExecutable, Upgr
     }
 
     function _mint(address tokenAddress, address destinationaddress, uint256 amount) internal {
-        (bool success, ) = tokenAddress.call(abi.encodeWithSelector(IMintableCappedERC20.mint.selector, destinationaddress, amount));
+        (bool success, ) = tokenAddress.call(abi.encodeWithSelector(IERC20BurnableMintableCapped.mint.selector, destinationaddress, amount));
 
         if (!success || tokenAddress.code.length == 0) revert MintFailed();
     }
 
     function _burn(address tokenAddress, address from, uint256 amount) internal {
-        (bool success, ) = tokenAddress.call(abi.encodeWithSelector(IBurnableMintableCappedERC20.burnFrom.selector, from, amount));
+        (bool success, ) = tokenAddress.call(abi.encodeWithSelector(IERC20BurnableMintableCapped.burnFrom.selector, from, amount));
 
         if (!success || tokenAddress.code.length == 0) revert BurnFailed();
     }

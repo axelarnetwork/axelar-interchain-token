@@ -7,7 +7,7 @@
     "constAddressDeployer": "0x98b2920d53612483f91f12ed7754e51b4a77919e",
     "tokenName": "Ether",
     "tokenSymbol": "ETH",
-    "gasService": "0xbE406F0189A0B4cf3A05C286473D23791Dd44Cc6",
+    "gasReceiver": "0xbE406F0189A0B4cf3A05C286473D23791Dd44Cc6",
     "AxelarGasService": {
       "salt": "AxelarGasService",
       "address": "0xbE406F0189A0B4cf3A05C286473D23791Dd44Cc6",
@@ -23,7 +23,7 @@
       "wrappedSymbol": "WETH",
       "refundIssuer": "0x4f671f34d2d23fec3eE3087E3A0221f8D314D9dF"
     },
-    "tokenDeployer": "0x1B6b79Fa37EAB9Fa8f749F30AC256b7caE30796F",
+    "tokenDeployer": "0x178caE4f63804AC0A8E16133d212b65B93Cd731f",
     "tokenLinker": "0x7cD2E96f5258BB825ad6FC0D200EDf8C99590d30",
     "linkerRouter": "0xA01e97736b611153Bf4493d0E31DF2547e902e1e"
   },
@@ -35,7 +35,7 @@
     "constAddressDeployer": "0x98b2920d53612483f91f12ed7754e51b4a77919e",
     "tokenName": "Avax",
     "tokenSymbol": "AVAX",
-    "gasService": "0xbE406F0189A0B4cf3A05C286473D23791Dd44Cc6",
+    "gasReceiver": "0xbE406F0189A0B4cf3A05C286473D23791Dd44Cc6",
     "AxelarGasService": {
       "salt": "AxelarGasService",
       "address": "0xbE406F0189A0B4cf3A05C286473D23791Dd44Cc6",
@@ -51,9 +51,9 @@
       "wrappedSymbol": "WAVAX",
       "refundIssuer": "0x4f671f34d2d23fec3eE3087E3A0221f8D314D9dF"
     },
-    "tokenDeployer": "0xf8d8BB83580Ef2493cE0786c49b3e3293eAab698",
-    "tokenLinker": "0x7cD2E96f5258BB825ad6FC0D200EDf8C99590d30",
-    "linkerRouter": "0xA01e97736b611153Bf4493d0E31DF2547e902e1e"
+    "tokenDeployer": "0x9867F542BE42611fd7E01700BE141Fb5C7112FCc",
+    "tokenLinker": "0xb635e12fd32114D0328AC5Dd30274d0173397105",
+    "linkerRouter": "0x7679EF7588b52e7419A9D0E7CA9e4e41eBf865b5"
   },
   {
     "name": "Fantom",
@@ -63,7 +63,7 @@
     "constAddressDeployer": "0x98b2920d53612483f91f12ed7754e51b4a77919e",
     "tokenName": "Fantom",
     "tokenSymbol": "FTM",
-    "gasService": "0xbE406F0189A0B4cf3A05C286473D23791Dd44Cc6",
+    "gasReceiver": "0xbE406F0189A0B4cf3A05C286473D23791Dd44Cc6",
     "AxelarGasService": {
       "salt": "AxelarGasService",
       "address": "0xbE406F0189A0B4cf3A05C286473D23791Dd44Cc6",
@@ -79,7 +79,7 @@
       "wrappedSymbol": "WFTM",
       "refundIssuer": "0x4f671f34d2d23fec3eE3087E3A0221f8D314D9dF"
     },
-    "tokenDeployer": "0x145c4B9D0aBF075848D84ABD40623466eF11E4FB",
+    "tokenDeployer": "0x29CB961BC5956Dbfe0aD2AEEE9D34A98F8B53F05",
     "tokenLinker": "0x7cD2E96f5258BB825ad6FC0D200EDf8C99590d30",
     "linkerRouter": "0xA01e97736b611153Bf4493d0E31DF2547e902e1e"
   },
@@ -91,7 +91,7 @@
     "constAddressDeployer": "0x98b2920d53612483f91f12ed7754e51b4a77919e",
     "tokenName": "Matic",
     "tokenSymbol": "MATIC",
-    "gasService": "0xbE406F0189A0B4cf3A05C286473D23791Dd44Cc6",
+    "gasReceiver": "0xbE406F0189A0B4cf3A05C286473D23791Dd44Cc6",
     "AxelarGasService": {
       "salt": "AxelarGasService",
       "address": "0xbE406F0189A0B4cf3A05C286473D23791Dd44Cc6",
@@ -110,7 +110,7 @@
     "gasOptions": {
       "gasLimit": 6000000
     },
-    "tokenDeployer": "0x2C0a65edbE314191D3B599103A153619C869f077",
+    "tokenDeployer": "0xdF851be8F85505E5c9999665036ae5a3aCD70433",
     "tokenLinker": "0x7cD2E96f5258BB825ad6FC0D200EDf8C99590d30",
     "linkerRouter": "0xA01e97736b611153Bf4493d0E31DF2547e902e1e"
   },
@@ -122,7 +122,7 @@
     "constAddressDeployer": "0x98b2920d53612483f91f12ed7754e51b4a77919e",
     "tokenName": "DEV",
     "tokenSymbol": "DEV",
-    "gasService": "0xbE406F0189A0B4cf3A05C286473D23791Dd44Cc6",
+    "gasReceiver": "0xbE406F0189A0B4cf3A05C286473D23791Dd44Cc6",
     "AxelarGasService": {
       "salt": "AxelarGasService",
       "address": "0xbE406F0189A0B4cf3A05C286473D23791Dd44Cc6",
@@ -138,9 +138,9 @@
       "wrappedSymbol": "WDEV",
       "refundIssuer": "0x4f671f34d2d23fec3eE3087E3A0221f8D314D9dF"
     },
-    "tokenDeployer": "0x6507350Be39c905948FFA9f4eFFa8050DD62506A",
-    "tokenLinker": "0x7cD2E96f5258BB825ad6FC0D200EDf8C99590d30",
-    "linkerRouter": "0xA01e97736b611153Bf4493d0E31DF2547e902e1e"
+    "tokenDeployer": "0x50d7A106b1a6eF309c3add979a14fdA99bf1e441",
+    "tokenLinker": "0xb635e12fd32114D0328AC5Dd30274d0173397105",
+    "linkerRouter": "0x7679EF7588b52e7419A9D0E7CA9e4e41eBf865b5"
   },
   {
     "name": "Binance",
@@ -150,7 +150,7 @@
     "constAddressDeployer": "0x98b2920d53612483f91f12ed7754e51b4a77919e",
     "tokenName": "Binance Coin",
     "tokenSymbol": "BNB",
-    "gasService": "0xbE406F0189A0B4cf3A05C286473D23791Dd44Cc6",
+    "gasReceiver": "0xbE406F0189A0B4cf3A05C286473D23791Dd44Cc6",
     "AxelarGasService": {
       "salt": "AxelarGasService",
       "address": "0xbE406F0189A0B4cf3A05C286473D23791Dd44Cc6",
@@ -166,7 +166,7 @@
       "wrappedSymbol": "WBNB",
       "refundIssuer": "0x4f671f34d2d23fec3eE3087E3A0221f8D314D9dF"
     },
-    "tokenDeployer": "0x1480f08B8F18bcc6a0040Db7c54e6ED332ff8991",
+    "tokenDeployer": "0x29CB961BC5956Dbfe0aD2AEEE9D34A98F8B53F05",
     "tokenLinker": "0x7cD2E96f5258BB825ad6FC0D200EDf8C99590d30",
     "linkerRouter": "0xA01e97736b611153Bf4493d0E31DF2547e902e1e"
   },
@@ -178,7 +178,7 @@
     "constAddressDeployer": "0x98b2920d53612483f91f12ed7754e51b4a77919e",
     "tokenName": "Eth",
     "tokenSymbol": "ETH",
-    "gasService": "0xbE406F0189A0B4cf3A05C286473D23791Dd44Cc6",
+    "gasReceiver": "0xbE406F0189A0B4cf3A05C286473D23791Dd44Cc6",
     "AxelarGasService": {
       "salt": "AxelarGasService",
       "address": "0xbE406F0189A0B4cf3A05C286473D23791Dd44Cc6",
@@ -194,7 +194,7 @@
       "wrappedSymbol": "",
       "refundIssuer": "0x4f671f34d2d23fec3eE3087E3A0221f8D314D9dF"
     },
-    "tokenDeployer": "0x0691BcDFce54E15c93F8718431DDfD6afE754231",
+    "tokenDeployer": "0x1090e7B9084ef2aB9ac918CbA15898891C8118bB",
     "tokenLinker": "0x7cD2E96f5258BB825ad6FC0D200EDf8C99590d30",
     "linkerRouter": "0xA01e97736b611153Bf4493d0E31DF2547e902e1e"
   },
@@ -206,7 +206,7 @@
     "constAddressDeployer": "0x98b2920d53612483f91f12ed7754e51b4a77919e",
     "tokenName": "Eth",
     "tokenSymbol": "ETH",
-    "gasService": "0xbE406F0189A0B4cf3A05C286473D23791Dd44Cc6",
+    "gasReceiver": "0xbE406F0189A0B4cf3A05C286473D23791Dd44Cc6",
     "AxelarGasService": {
       "salt": "AxelarGasService",
       "collector": "0xB8Cd93C83A974649D76B1c19f311f639e62272BC",
@@ -225,7 +225,7 @@
     "gasOptions": {
       "gasLimit": 20000000
     },
-    "tokenDeployer": "0x02Aa8b441f509eE6dC5411e461f9612dEA12Fe73",
+    "tokenDeployer": "0x348ba0A8e70Ea408f8a9786AdeD00df1E0f106cA",
     "tokenLinker": "0x7cD2E96f5258BB825ad6FC0D200EDf8C99590d30",
     "linkerRouter": "0xA01e97736b611153Bf4493d0E31DF2547e902e1e"
   },
@@ -237,7 +237,7 @@
     "constAddressDeployer": "0x98b2920d53612483f91f12ed7754e51b4a77919e",
     "tokenName": "Celo",
     "tokenSymbol": "CELO",
-    "gasService": "0xbE406F0189A0B4cf3A05C286473D23791Dd44Cc6",
+    "gasReceiver": "0xbE406F0189A0B4cf3A05C286473D23791Dd44Cc6",
     "AxelarGasService": {
       "salt": "AxelarGasService",
       "address": "0xbE406F0189A0B4cf3A05C286473D23791Dd44Cc6",
@@ -253,7 +253,7 @@
       "implementation": "0xb6241272C569767072e0587098415DF6BA0aaEe9",
       "deployer": "0xd55cd98cdE61c3CcE1286F9aF50cDbF16f5dba5b"
     },
-    "tokenDeployer": "0xcF92e13be62c3Bc36A4aC7a416F43E600868202d",
+    "tokenDeployer": "0x4742BE6C9215956e81bbcA750Fe19d52B33BE024",
     "tokenLinker": "0x7cD2E96f5258BB825ad6FC0D200EDf8C99590d30",
     "linkerRouter": "0xA01e97736b611153Bf4493d0E31DF2547e902e1e"
   },
@@ -265,7 +265,7 @@
     "constAddressDeployer": "0x98b2920d53612483f91f12ed7754e51b4a77919e",
     "tokenName": "Kava",
     "tokenSymbol": "KAVA",
-    "gasService": "0xbE406F0189A0B4cf3A05C286473D23791Dd44Cc6",
+    "gasReceiver": "0xbE406F0189A0B4cf3A05C286473D23791Dd44Cc6",
     "AxelarGasService": {
       "salt": "AxelarGasService",
       "collector": "0xB8Cd93C83A974649D76B1c19f311f639e62272BC",
@@ -281,7 +281,7 @@
       "implementation": "0xb6241272C569767072e0587098415DF6BA0aaEe9",
       "deployer": "0xd55cd98cdE61c3CcE1286F9aF50cDbF16f5dba5b"
     },
-    "tokenDeployer": "0x1C936a54962866c6315EfC6183b67ED0841DA615",
+    "tokenDeployer": "0x610231868c06b1EFBB0B86C1AaA56318949Bc92a",
     "tokenLinker": "0x7cD2E96f5258BB825ad6FC0D200EDf8C99590d30",
     "linkerRouter": "0xA01e97736b611153Bf4493d0E31DF2547e902e1e"
   }

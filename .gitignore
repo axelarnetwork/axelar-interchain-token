@@ -3,3 +3,6 @@ artifacts
 ./info/local.json
 cache
 .env
+test.js
+cloneTestnets.js
+createLocal.js

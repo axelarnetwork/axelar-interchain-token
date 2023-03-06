@@ -2,24 +2,46 @@
 
 pragma solidity 0.8.9;
 
-import { BurnableMintableCappedERC20 } from '@axelar-network/axelar-cgp-solidity/contracts/BurnableMintableCappedERC20.sol';
+import { Create3Deployer } from '@axelar-network/axelar-gmp-sdk-solidity/contracts/deploy/Create3Deployer.sol';
 
 import { ITokenDeployer } from './interfaces/ITokenDeployer.sol';
 
 contract TokenDeployer is ITokenDeployer {
-    function test() external view returns (address addr) {
-        addr = address(this);
+    Create3Deployer public immutable deployer;
+    address public immutable bytecodeServer;
+
+    constructor(address deployer_, address bytecodeServer_) {
+        deployer = Create3Deployer(deployer_);
+        bytecodeServer = bytecodeServer_;
     }
 
+    function getBytecode(bytes calldata args) external view returns (bytes memory bytecode) {
+        bytecode = _getBytecode(args);
+    }
+
+    function _getBytecode(bytes calldata args) internal view returns (bytes memory bytecode) {
+        
+        uint256 bytecodeLen;
+        address server = bytecodeServer;
+        assembly {
+            bytecodeLen := extcodesize(server)
+        } 
+        uint256 argsLen = args.length;
+        uint256 totalLen = argsLen + bytecodeLen;
+        bytecode = new bytes(totalLen);
+        uint256 start = bytecodeLen + 32;
+        assembly {
+            extcodecopy(server, add(bytecode, 32), 0, bytecodeLen)
+            calldatacopy(add(bytecode, start), args.offset, argsLen)
+            mstore(bytecode, totalLen)
+        }
+    }
+    
     function deployToken(
-        address owner,
-        string calldata name,
-        string calldata symbol,
-        uint8 decimals,
-        uint256 cap,
+        bytes calldata args,
         bytes32 salt
     ) external payable returns (address tokenAddress) {
-        tokenAddress = address(new BurnableMintableCappedERC20{ salt: salt }(name, symbol, decimals, cap));
-        BurnableMintableCappedERC20(tokenAddress).transferOwnership(owner);
+        bytes memory bytecode = _getBytecode(args);
+        tokenAddress = deployer.deploy(bytecode, salt);
     }
 }

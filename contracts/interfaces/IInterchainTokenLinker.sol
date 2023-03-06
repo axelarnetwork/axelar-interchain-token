@@ -35,6 +35,8 @@ interface IInterchainTokenLinker {
     event TokenDeployed(address indexed tokenAddress, string name, string symbol, uint8 decimals, uint256 cap, address indexed owner);
     event RemoteTokenRegisterInitialized(bytes32 indexed tokenId, string destinationChain, uint256 gasValue);
 
+    function chainNameHash() external view returns (bytes32);
+
     function getTokenData(bytes32 tokenId) external view returns (bytes32 tokenData);
 
     function getOriginalChain(bytes32 tokenId) external view returns (string memory origin);

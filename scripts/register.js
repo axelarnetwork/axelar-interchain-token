@@ -1,4 +1,5 @@
 const { Contract, getDefaultProvider } = require("ethers");
+const { keccak256, defaultAbiCoder } = require("ethers/lib/utils");
 const ITokenLinker = require('../artifacts/contracts/interfaces/IInterchainTokenLinker.sol/IInterchainTokenLinker.json');
 
 async function registerOriginToken(chain, wallet, tokenAddress) {
@@ -6,8 +7,8 @@ async function registerOriginToken(chain, wallet, tokenAddress) {
     const walletConnected = wallet.connect(provider);
 
     const tl = new Contract(chain.tokenLinker, ITokenLinker.abi, walletConnected);
-
     await (await tl.registerOriginToken(tokenAddress)).wait();
+
     const tokenId = await tl.getOriginTokenId(tokenAddress);
     return tokenId;
 }

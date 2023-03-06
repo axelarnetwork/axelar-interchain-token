@@ -7,14 +7,13 @@ const { keccak256, defaultAbiCoder, RLP } = require('ethers/lib/utils');
 const { setJSON } = require('@axelar-network/axelar-local-dev/dist/utils');
 require('dotenv').config();
 
-const ERC20MintableBurnable = require('../artifacts/@axelar-network/axelar-gmp-sdk-solidity/contracts/test/ERC20MintableBurnable.sol/ERC20MintableBurnable.json');
+const ERC20MintableBurnable = require('../artifacts/contracts/ERC20BurnableMintableCapped.sol/ERC20BurnableMintableCapped.json');
 const ITokenLinker = require('../artifacts/contracts/interfaces/IInterchainTokenLinker.sol/IInterchainTokenLinker.json');
-const IERC20 = require('../artifacts/contracts/interfaces/IERC20.sol/IERC20.json');
+const IERC20 = require('../artifacts/contracts/interfaces/IERC20Named.sol/IERC20Named.json');
 const LinkerRouter = require('../artifacts/contracts/LinkerRouter.sol/LinkerRouter.json');
 const IAxelarGasService = require('@axelar-network/axelar-gmp-sdk-solidity/artifacts/contracts/interfaces/IAxelarGasService.sol/IAxelarGasService.json');
 const { deployContract } = require('@axelar-network/axelar-gmp-sdk-solidity/scripts/utils');
 const { createAndExport, networks } = require('@axelar-network/axelar-local-dev');
-const { deployTokenLinker } = require('../scripts/deploy.js');
 const { deployRemoteTokens, registerOriginToken } = require('../scripts/register');
 
 let chains;
@@ -31,7 +30,7 @@ async function setupLocal(toFund) {
 async function deployToken(chain, walletUnconnected, name = 'Subnet Token', symbol = 'ST', decimals = 18) {
     const provider = getDefaultProvider(chain.rpc);
     const wallet = walletUnconnected.connect(provider);
-    const contract = await deployContract(wallet, ERC20MintableBurnable, [name, symbol, decimals]);
+    const contract = await deployContract(wallet, ERC20MintableBurnable, [name, symbol, decimals, 0, wallet.address]);
 
     return contract;
 }
@@ -48,11 +47,12 @@ describe('Token Linker', () => {
         const deployerAddress = new Wallet(deployer_key).address;
         const toFund = [deployerAddress];
         await setupLocal(toFund);
+        const { deployTokenLinker } = require('../scripts/deploy.js');
         chains = require('../info/local.json');
         chains[0].gatewayToken = (await deployToken(chains[0], wallet, 'gateway token', 'GT', 6)).address;
         for(const chain of chains) {
             chain.token = (await deployToken(chain, wallet)).address;
-            await deployTokenLinker(chain, wallet);
+            await deployTokenLinker(chain, wallet); 
             const network = networks.find(network => network.name == chain.name);
             if(chain == chains[0]) {
                 await network.deployToken('gateway token', 'GT', 6, BigInt(1e18), chain.gatewayToken);
