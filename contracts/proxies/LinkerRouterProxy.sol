@@ -9,10 +9,9 @@ contract LinkerRouterProxy is Proxy {
         address implementationAddress,
         address owner,
         bytes memory setupParams
-    ) Proxy(implementationAddress, owner, setupParams) // solhint-disable-next-line no-empty-blocks
-    {
-
-    }
+    )
+        Proxy(implementationAddress, owner, setupParams) // solhint-disable-next-line no-empty-blocks
+    {}
 
     // solhint-disable-next-line no-empty-blocks
     function contractId() internal pure override returns (bytes32) {

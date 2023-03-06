@@ -30,7 +30,7 @@ async function upgrade(chain, wallet) {
 if (require.main === module) {
     (async () => {
         const deployerKey = process.env.EVM_PRIVATE_KEY;
-        
+
         for (const chain of chains) {
             const provider = getDefaultProvider(chain.rpc);
             const wallet = new Wallet(deployerKey, provider);

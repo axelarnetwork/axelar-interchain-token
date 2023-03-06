@@ -10,10 +10,7 @@ const LinkerRouter = require('../artifacts/contracts/LinkerRouter.sol/LinkerRout
 const BytecodeServer = require('../artifacts/contracts/BytecodeServer.sol/BytecodeServer.json');
 const Token = require('../artifacts/contracts/ERC20BurnableMintableCapped.sol/ERC20BurnableMintableCapped.json');
 const { deployContract } = require('@axelar-network/axelar-gmp-sdk-solidity/scripts/utils');
-const {
-    getCreate3Address,
-    deployCreate3Upgradable,
-} = require('@axelar-network/axelar-gmp-sdk-solidity');
+const { getCreate3Address, deployCreate3Upgradable } = require('@axelar-network/axelar-gmp-sdk-solidity');
 const { getDefaultProvider, Wallet } = require('ethers');
 const { setJSON } = require('@axelar-network/axelar-local-dev');
 const chains = require(`../info/${process.env.ENV}.json`);
@@ -101,7 +98,7 @@ module.exports = {
 if (require.main === module) {
     (async () => {
         const deployerKey = process.env.EVM_PRIVATE_KEY;
-        
+
         for (const chain of chains) {
             const provider = getDefaultProvider(chain.rpc);
             const wallet = new Wallet(deployerKey, provider);
