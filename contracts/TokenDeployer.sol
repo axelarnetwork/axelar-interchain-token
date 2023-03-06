@@ -20,12 +20,11 @@ contract TokenDeployer is ITokenDeployer {
     }
 
     function _getBytecode(bytes calldata args) internal view returns (bytes memory bytecode) {
-        
         uint256 bytecodeLen;
         address server = bytecodeServer;
         assembly {
             bytecodeLen := extcodesize(server)
-        } 
+        }
         uint256 argsLen = args.length;
         uint256 totalLen = argsLen + bytecodeLen;
         bytecode = new bytes(totalLen);
@@ -36,11 +35,8 @@ contract TokenDeployer is ITokenDeployer {
             mstore(bytecode, totalLen)
         }
     }
-    
-    function deployToken(
-        bytes calldata args,
-        bytes32 salt
-    ) external payable returns (address tokenAddress) {
+
+    function deployToken(bytes calldata args, bytes32 salt) external payable returns (address tokenAddress) {
         bytes memory bytecode = _getBytecode(args);
         tokenAddress = deployer.deploy(bytecode, salt);
     }

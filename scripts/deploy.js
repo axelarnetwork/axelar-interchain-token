@@ -10,14 +10,17 @@ const LinkerRouter = require('../artifacts/contracts/LinkerRouter.sol/LinkerRout
 const BytecodeServer = require('../artifacts/contracts/BytecodeServer.sol/BytecodeServer.json');
 const Token = require('../artifacts/contracts/ERC20BurnableMintableCapped.sol/ERC20BurnableMintableCapped.json');
 const { deployContract } = require('@axelar-network/axelar-gmp-sdk-solidity/scripts/utils');
-const { predictContractConstant, deployUpgradable, getCreate3Address, deployCreate3Contract, deployCreate3Upgradable } = require('@axelar-network/axelar-gmp-sdk-solidity');
+const {
+    getCreate3Address,
+    deployCreate3Upgradable,
+} = require('@axelar-network/axelar-gmp-sdk-solidity');
 const { getDefaultProvider, Wallet } = require('ethers');
 const { setJSON } = require('@axelar-network/axelar-local-dev');
-const chains = require(`../info/${process.env.ENV}.json`)
+const chains = require(`../info/${process.env.ENV}.json`);
 
 async function _deployTokenDeployer(chain, wallet) {
-    if(chain.tokenDeployer) return;
-    
+    if (chain.tokenDeployer) return;
+
     console.log(`Deploying Bytecode Server.`);
     const bytecodeServer = await deployContract(wallet, BytecodeServer, [Token.bytecode]);
     chain.bytecodeServer = bytecodeServer.address;
@@ -31,9 +34,8 @@ async function _deployTokenDeployer(chain, wallet) {
     setJSON(chains, `./info/${process.env.ENV}.json`);
 }
 
-
 async function _deployTokenLinker(chain, wallet) {
-    if(chain.tokenLinker) return;
+    if (chain.tokenLinker) return;
 
     const ravAddress = await getCreate3Address(chain.create3Deployer, wallet, 'linkerRouter');
     console.log(`Deploying TokenLinker.`);
@@ -51,8 +53,9 @@ async function _deployTokenLinker(chain, wallet) {
     console.log(`Deployed at: ${tl.address}`);
     setJSON(chains, `./info/${process.env.ENV}.json`);
 }
+
 async function _deployLinkerRouter(chain, wallet) {
-    if(chain.linkerRouter) return;
+    if (chain.linkerRouter) return;
 
     console.log(`Deploying LinkerRouter.`);
     const linkerRouter = await deployCreate3Upgradable(
@@ -60,7 +63,7 @@ async function _deployLinkerRouter(chain, wallet) {
         wallet,
         LinkerRouter,
         LinkerRouterProxy,
-        [chain.tokenLinker, [], []], 
+        [chain.tokenLinker, [], []],
         [],
         '0x',
         'linkerRouter',
@@ -70,42 +73,44 @@ async function _deployLinkerRouter(chain, wallet) {
     setJSON(chains, `./info/${process.env.ENV}.json`);
 }
 
-async function reapeat(action, n=10) {
-    for(let i=0;i<n;i++) {
+async function reapeat(action, n = 10) {
+    for (let i = 0; i < n; i++) {
         try {
             await action();
             return true;
         } catch (e) {
-            console.log(`Failed attempt ${i+1}`);
+            console.log(`Failed attempt ${i + 1}`);
         }
     }
+
     return false;
 }
 
 async function deployTokenLinker(chain, wallet) {
     const provider = getDefaultProvider(chain.rpc);
     const walletConnected = wallet.connect(provider);
-    if(!await reapeat(async() => await _deployTokenDeployer(chain, walletConnected))) return;
-    if(!await reapeat(async() => await _deployTokenLinker(chain, walletConnected))) return;
-    await reapeat(async() => await _deployLinkerRouter(chain, walletConnected));
+    if (!(await reapeat(async () => await _deployTokenDeployer(chain, walletConnected)))) return;
+    if (!(await reapeat(async () => await _deployTokenLinker(chain, walletConnected)))) return;
+    await reapeat(async () => await _deployLinkerRouter(chain, walletConnected));
 }
 
 module.exports = {
     deployTokenLinker,
-}
+};
 
-if (require.main === module) {    
+if (require.main === module) {
     (async () => {
-        const deployer_key = process.env.EVM_PRIVATE_KEY;
-        for(const chain of chains) {
+        const deployerKey = process.env.EVM_PRIVATE_KEY;
+        
+        for (const chain of chains) {
             const provider = getDefaultProvider(chain.rpc);
-            const wallet = new Wallet(deployer_key, provider);
-            console.log(`----- ${chain.name}: ------`)
-            console.log(`before : ${Number(await provider.getBalance(wallet.address)/1e18)}`);
+            const wallet = new Wallet(deployerKey, provider);
+            console.log(`----- ${chain.name}: ------`);
+            console.log(`before : ${Number((await provider.getBalance(wallet.address)) / 1e18)}`);
             console.log(wallet.address);
             await deployTokenLinker(chain, wallet);
             setJSON(chains, `./info/${process.env.ENV}.json`);
-            console.log(`after : ${Number(await provider.getBalance(wallet.address)/1e18)}`);
+            console.log(`after : ${Number((await provider.getBalance(wallet.address)) / 1e18)}`);
         }
     })();
 }

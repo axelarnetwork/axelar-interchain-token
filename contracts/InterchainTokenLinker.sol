@@ -368,11 +368,9 @@ contract InterchainTokenLinker is IInterchainTokenLinker, AxelarExecutable, Upgr
         address owner,
         bytes32 salt
     ) internal returns (address tokenAddress) {
-        (bool success, bytes memory data) = address(tokenDeployer).delegatecall(abi.encodeWithSelector(
-            tokenDeployer.deployToken.selector, 
-            abi.encode(tokenName, tokenSymbol, decimals, cap, owner),
-            salt
-        ));
+        (bool success, bytes memory data) = address(tokenDeployer).delegatecall(
+            abi.encodeWithSelector(tokenDeployer.deployToken.selector, abi.encode(tokenName, tokenSymbol, decimals, cap, owner), salt)
+        );
         if (!success) revert TokenDeploymentFailed();
         tokenAddress = abi.decode(data, (address));
         //tokenAddress = tokenDeployer.deployToken(owner, tokenName, tokenSymbol, decimals, cap, salt);
@@ -489,7 +487,15 @@ contract InterchainTokenLinker is IInterchainTokenLinker, AxelarExecutable, Upgr
                 _callContract(getOriginalChain(tokenId), payload, msg.value);
             }
         } else {
-            payload = abi.encodeWithSelector(this.selfGiveTokenWithData.selector, tokenId, sourceChain, sourceAddress, destinationaddress, amount, data);
+            payload = abi.encodeWithSelector(
+                this.selfGiveTokenWithData.selector,
+                tokenId,
+                sourceChain,
+                sourceAddress,
+                destinationaddress,
+                amount,
+                data
+            );
             _callContract(destinationChain, payload, msg.value);
         }
         emit SendingWithData(destinationChain, destinationaddress, amount, msg.sender, data);
@@ -529,7 +535,9 @@ contract InterchainTokenLinker is IInterchainTokenLinker, AxelarExecutable, Upgr
     }
 
     function _transfer(address tokenAddress, address destinationaddress, uint256 amount) internal {
-        (bool success, bytes memory returnData) = tokenAddress.call(abi.encodeWithSelector(IERC20.transfer.selector, destinationaddress, amount));
+        (bool success, bytes memory returnData) = tokenAddress.call(
+            abi.encodeWithSelector(IERC20.transfer.selector, destinationaddress, amount)
+        );
         bool transferred = success && (returnData.length == uint256(0) || abi.decode(returnData, (bool)));
 
         if (!transferred || tokenAddress.code.length == 0) revert TransferFailed();
@@ -545,7 +553,9 @@ contract InterchainTokenLinker is IInterchainTokenLinker, AxelarExecutable, Upgr
     }
 
     function _mint(address tokenAddress, address destinationaddress, uint256 amount) internal {
-        (bool success, ) = tokenAddress.call(abi.encodeWithSelector(IERC20BurnableMintableCapped.mint.selector, destinationaddress, amount));
+        (bool success, ) = tokenAddress.call(
+            abi.encodeWithSelector(IERC20BurnableMintableCapped.mint.selector, destinationaddress, amount)
+        );
 
         if (!success || tokenAddress.code.length == 0) revert MintFailed();
     }
