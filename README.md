@@ -31,7 +31,7 @@ This section will be separated into two sections: the admin section, that explai
 
 ### User functions
 
-All of the below are for the `TokenLinker`.
+All of the below are for the `InterchainTokenLinker`.
 
 - `registerToken(address tokenAddress)`: Registers origin token at address `tokenAddress`.
 - `deployRemoteTokens(tokenId, destinationChains, gasValues)`: Deploys a registered native token to the `destinationChains`

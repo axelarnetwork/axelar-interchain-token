@@ -40,7 +40,7 @@ async function deployToken(chain, walletUnconnected, name = 'Subnet Token', symb
     return contract;
 }
 
-describe('Token Linker', () => {
+describe('Interchain Token Linker', () => {
     before(async () => {
         const deployerKey = keccak256(defaultAbiCoder.encode(['string'], [process.env.PRIVATE_KEY_GENERATOR]));
         wallet = new Wallet(deployerKey);
@@ -85,6 +85,22 @@ describe('Token Linker', () => {
     it(`Should deploy a remote token`, async () => {
         const origin = chains[0];
         const destination = chains[1];
+
+        const tokenId = await origin.tl.getOriginTokenId(origin.token);
+        await deployRemoteTokens(origin, wallet, tokenId, [destination.name], [1e7]);
+
+        await new Promise((resolve) => {
+            setTimeout(() => {
+                resolve();
+            }, 500);
+        });
+        expect(await destination.tl.getTokenAddress(tokenId)).to.not.equal(AddressZero);
+    });
+    it(`Should fail to deploy a remote token before registering a token`, async () => {
+        const origin = chains[0];
+        const destination = chains[1];
+
+        const newToken = await deployToken(origin, wallet, 'Unregistered Token', 'UT', 18);
 
         const tokenId = await origin.tl.getOriginTokenId(origin.token);
         await deployRemoteTokens(origin, wallet, tokenId, [destination.name], [1e7]);
