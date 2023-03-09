@@ -12,11 +12,13 @@ const { keccak256, defaultAbiCoder } = require('ethers/lib/utils');
 const { setJSON } = require('@axelar-network/axelar-local-dev/dist/utils');
 require('dotenv').config();
 
-const ERC20MintableBurnable = require('../artifacts/contracts/ERC20BurnableMintableCapped.sol/ERC20BurnableMintableCapped.json');
+const ERC20MintableBurnable = require('../artifacts/contracts/ERC20BurnableMintable.sol/ERC20BurnableMintable.json');
+const IERC20MintableBurnable = require('../artifacts/contracts/interfaces/IERC20BurnableMintable.sol/IERC20BurnableMintable.json');
 const ITokenLinker = require('../artifacts/contracts/interfaces/IInterchainTokenLinker.sol/IInterchainTokenLinker.json');
 const IERC20 = require('../artifacts/contracts/interfaces/IERC20Named.sol/IERC20Named.json');
 const LinkerRouter = require('../artifacts/contracts/LinkerRouter.sol/LinkerRouter.json');
 const IAxelarGasService = require('@axelar-network/axelar-gmp-sdk-solidity/artifacts/contracts/interfaces/IAxelarGasService.sol/IAxelarGasService.json');
+const TokenProxy = require('../artifacts/contracts/proxies/TokenProxy.sol/TokenProxy.json');
 const { deployContract } = require('@axelar-network/axelar-gmp-sdk-solidity/scripts/utils');
 const { createAndExport, networks } = require('@axelar-network/axelar-local-dev');
 const { deployRemoteTokens, registerOriginToken } = require('../scripts/register');
@@ -35,36 +37,60 @@ async function setupLocal(toFund) {
 async function deployToken(chain, walletUnconnected, name = 'Subnet Token', symbol = 'ST', decimals = 18) {
     const provider = getDefaultProvider(chain.rpc);
     const wallet = walletUnconnected.connect(provider);
-    const contract = await deployContract(wallet, ERC20MintableBurnable, [name, symbol, decimals, 0, wallet.address]);
+    console.log(`Deploying a token {name: ${name}, symbol: ${symbol}, decimals: ${decimals}}`);
+    const proxy = await deployContract(wallet, TokenProxy, [chain.tokenImplementation, name, symbol, decimals, wallet.address]);
+    console.log(`Deployed at: ${proxy.address}`);
+    const contract = new Contract(proxy.address, IERC20MintableBurnable.abi, wallet);
 
     return contract;
 }
 
-describe('Interchain Token Linker', () => {
-    before(async () => {
-        const deployerKey = keccak256(defaultAbiCoder.encode(['string'], [process.env.PRIVATE_KEY_GENERATOR]));
-        wallet = new Wallet(deployerKey);
-        const deployerAddress = new Wallet(deployerKey).address;
-        const toFund = [deployerAddress];
-        await setupLocal(toFund);
-        const { deployTokenLinker } = require('../scripts/deploy.js');
-        chains = require('../info/local.json');
-        chains[0].gatewayToken = (await deployToken(chains[0], wallet, 'gateway token', 'GT', 6)).address;
+before(async() => {
+    const deployerKey = keccak256(defaultAbiCoder.encode(['string'], [process.env.PRIVATE_KEY_GENERATOR]));
+    wallet = new Wallet(deployerKey);
+    const deployerAddress = new Wallet(deployerKey).address;
+    const toFund = [deployerAddress];
+    await setupLocal(toFund);
+    chains = require('../info/local.json');
 
-        for (const chain of chains) {
-            chain.token = (await deployToken(chain, wallet)).address;
-            await deployTokenLinker(chain, wallet);
-            const network = networks.find((network) => network.name === chain.name);
+    const { deployTokenLinker } = require('../scripts/deploy.js');
 
-            if (chain === chains[0]) {
-                await network.deployToken('gateway token', 'GT', 6, BigInt(1e18), chain.gatewayToken);
-            } else if (chain === chains[1]) {
-                chain.gatewayToken = (await network.deployToken('gateway token', 'GT', 6, BigInt(1e18))).address;
-            }
+    for (const chain of chains) {
+        await deployTokenLinker(chain, wallet);
+        chain.token = (await deployToken(chain, wallet)).address;
+        const network = networks.find((network) => network.name === chain.name);
+
+        if (chain === chains[0]) {
+            chain.gatewayToken = (await deployToken(chains[0], wallet, 'gateway token', 'GT', 6)).address;
+            await network.deployToken('gateway token', 'GT', 6, BigInt(1e18), chain.gatewayToken);
+        } else if (chain === chains[1]) {
+            chain.gatewayToken = (await network.deployToken('gateway token', 'GT', 6, BigInt(1e18))).address;
         }
+    }
 
-        setJSON(chains, './info/local.json');
+    setJSON(chains, './info/local.json');
 
+});
+
+describe('Token', () => {
+    let token;
+    const name = 'Test Token';
+    const symbol = 'TT';
+    const decimals = 13;
+    before(async() => {
+        token = await deployToken(chains[0], wallet, name, symbol, decimals);
+    });
+    it('Should Test that the token has the correct name, symbol, decimals and owner', async() => {
+        console.log(await token.name());
+        expect(await token.name()).to.equal(name);
+        expect(await token.symbol()).to.equal(symbol);
+        expect(await token.decimals()).to.equal(decimals);
+        expect(await token.owner()).to.equal(wallet.address);
+    });
+});
+
+describe('Token Linker', () => {
+    before(async () => {
         for (const chain of chains) {
             const provider = getDefaultProvider(chain.rpc);
             chain.walletConnected = wallet.connect(provider);
@@ -212,7 +238,6 @@ describe('Interchain Token Linker', () => {
                 'Interchain Token',
                 'IT',
                 18,
-                0,
                 origin.walletConnected.address,
                 keccak256('0x012345675748594069'),
                 [destination.name],
@@ -286,18 +311,25 @@ describe('Interchain Token Linker', () => {
     let gatewayUnsupported;
     let tokenId;
 
-    it(`Should Register a gateway Token`, async () => {
+    it(`Should Register a native gateway Token`, async () => {
         origin = chains[0];
         gatewaySupported = chains[1];
         gatewayUnsupported = chains[2];
         await (await origin.tl.registerOriginGatewayToken('GT')).wait();
+        const filter = await origin.tl.filters.TokenRegistered();
+        const logs = await origin.tl.queryFilter(filter);
+        const log = logs[logs.length - 1];
         tokenId = await origin.tl.getOriginTokenId(origin.gatewayToken);
 
         expect(await origin.tl.getTokenAddress(tokenId)).to.equal(origin.gatewayToken);
+    });
+    it(`Should Register a remote gateway Token`, async () => {
 
         await (await gatewaySupported.tl.registerRemoteGatewayToken('GT', tokenId, origin.name)).wait();
 
         expect(await gatewaySupported.tl.getTokenAddress(tokenId)).to.equal(gatewaySupported.gatewayToken);
+    });
+    it(`Should deploy a remote gateway Token to an unsupported chain`, async () => {
 
         await (await origin.tl.deployRemoteTokens(tokenId, [gatewayUnsupported.name], [1e7], { value: 1e7 })).wait();
 

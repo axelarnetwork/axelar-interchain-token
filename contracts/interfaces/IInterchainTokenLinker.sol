@@ -32,7 +32,7 @@ interface IInterchainTokenLinker {
         bytes data
     );
     event TokenRegistered(bytes32 indexed tokenId, address indexed tokenAddress, bool native, bool gateway, bool remoteGateway);
-    event TokenDeployed(address indexed tokenAddress, string name, string symbol, uint8 decimals, uint256 cap, address indexed owner);
+    event TokenDeployed(address indexed tokenAddress, string name, string symbol, uint8 decimals, address indexed owner);
     event RemoteTokenRegisterInitialized(bytes32 indexed tokenId, string destinationChain, uint256 gasValue);
 
     function chainNameHash() external view returns (bytes32);
@@ -57,7 +57,6 @@ interface IInterchainTokenLinker {
         string calldata tokenName,
         string calldata tokenSymbol,
         uint8 decimals,
-        uint256 cap,
         address owner,
         bytes32 salt,
         string[] calldata destinationChains,
