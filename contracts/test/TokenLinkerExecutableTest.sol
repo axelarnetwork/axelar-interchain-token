@@ -2,13 +2,13 @@
 
 pragma solidity 0.8.9;
 
-import { ITokenLinkerCallable } from '../interfaces/ITokenLinkerCallable.sol';
-import { IERC20 } from '../interfaces/IERC20.sol';
+import { IInterTokenExecutable } from '../interfaces/IInterTokenExecutable.sol';
+import { IERC20Named } from '../interfaces/IERC20Named.sol';
 
-contract TokenLinkerExecutableTest is ITokenLinkerCallable {
+contract TokenLinkerExecutableTest is IInterTokenExecutable {
     string public val;
 
-    function processToken(
+    function exectuteWithInterToken(
         address tokenAddress,
         string calldata,
         bytes calldata,
@@ -17,6 +17,6 @@ contract TokenLinkerExecutableTest is ITokenLinkerCallable {
     ) external override {
         address to;
         (to, val) = abi.decode(data, (address, string));
-        IERC20(tokenAddress).transfer(to, amount);
+        IERC20Named(tokenAddress).transfer(to, amount);
     }
 }

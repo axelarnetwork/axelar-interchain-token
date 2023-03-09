@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.9;
 
-import { IERC20 } from '../interfaces/IERC20.sol';
+import { IERC20 } from '@axelar-network/axelar-gmp-sdk-solidity/contracts/interfaces/IERC20.sol';
 
 /**
  * @dev Implementation of the {IERC20} interface.
@@ -34,11 +34,6 @@ contract ERC20 is IERC20 {
     mapping(address => mapping(address => uint256)) public override allowance;
 
     uint256 public override totalSupply;
-
-    string public name;
-    string public symbol;
-
-    uint8 public decimals;
 
     /**
      * @dev See {IERC20-transfer}.
