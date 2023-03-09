@@ -2,18 +2,24 @@
 
 pragma solidity 0.8.9;
 
-import { ERC20 } from '@axelar-network/axelar-gmp-sdk-solidity/contracts/test/ERC20.sol';
+import { ERC20 } from './ERC20.sol';
 import { Ownable } from '@axelar-network/axelar-gmp-sdk-solidity/contracts/utils/Ownable.sol';
-import { IERC20BurnableMintableCapped } from './interfaces/IERC20BurnableMintableCapped.sol';
+import { IERC20BurnableMintable } from './interfaces/IERC20BurnableMintable.sol';
 
-contract ERC20BurnableMintableCapped is ERC20, Ownable, IERC20BurnableMintableCapped {
-    uint256 public immutable cap;
+contract ERC20BurnableMintable is ERC20, Ownable, IERC20BurnableMintable {
+    string public name;
+    string public symbol;
+    uint8 public decimals;
 
-    constructor(string memory name_, string memory symbol_, uint8 decimals_, uint256 cap_, address owner) ERC20(name_, symbol_, decimals_) {
-        cap = cap_;
-        if (cap > 0) {
-            _mint(owner, cap);
-        }
+    function setup(
+        string memory name_,
+        string memory symbol_, 
+        uint8 decimals_, 
+        address owner
+    ) external {
+        name = name_;
+        symbol = symbol_;
+        decimals = decimals_;
         // solhint-disable-next-line no-inline-assembly
         assembly {
             sstore(_OWNER_SLOT, owner)
@@ -21,11 +27,7 @@ contract ERC20BurnableMintableCapped is ERC20, Ownable, IERC20BurnableMintableCa
     }
 
     function mint(address account, uint256 amount) external onlyOwner {
-        uint256 capacity = cap;
-
         _mint(account, amount);
-
-        if (capacity != 0 && totalSupply > capacity) revert CapExceeded();
     }
 
     function burnFrom(address account, uint256 amount) external onlyOwner {

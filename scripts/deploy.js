@@ -8,18 +8,26 @@ const TokenLinkerProxy = require('../artifacts/contracts/proxies/InterchainToken
 const LinkerRouterProxy = require('../artifacts/contracts/proxies/LinkerRouterProxy.sol/LinkerRouterProxy.json');
 const LinkerRouter = require('../artifacts/contracts/LinkerRouter.sol/LinkerRouter.json');
 const BytecodeServer = require('../artifacts/contracts/BytecodeServer.sol/BytecodeServer.json');
-const Token = require('../artifacts/contracts/ERC20BurnableMintableCapped.sol/ERC20BurnableMintableCapped.json');
+const Token = require('../artifacts/contracts/ERC20BurnableMintable.sol/ERC20BurnableMintable.json');
+const TokenProxy = require('../artifacts/contracts/proxies/TokenProxy.sol/TokenProxy.json');
 const { deployContract } = require('@axelar-network/axelar-gmp-sdk-solidity/scripts/utils');
 const { getCreate3Address, deployCreate3Upgradable } = require('@axelar-network/axelar-gmp-sdk-solidity');
 const { getDefaultProvider, Wallet } = require('ethers');
 const { setJSON } = require('@axelar-network/axelar-local-dev');
 const chains = require(`../info/${process.env.ENV}.json`);
 
+
 async function _deployTokenDeployer(chain, wallet) {
     if (chain.tokenDeployer) return;
 
+
+    console.log(`Deploying ERC20BurnableMintable.`);
+    const token = await deployContract(wallet, Token, []);
+    chain.tokenImplementation = token.address;
+    console.log(`Deployed at: ${token.address}`);
+
     console.log(`Deploying Bytecode Server.`);
-    const bytecodeServer = await deployContract(wallet, BytecodeServer, [Token.bytecode]);
+    const bytecodeServer = await deployContract(wallet, BytecodeServer, [TokenProxy.bytecode]);
     chain.bytecodeServer = bytecodeServer.address;
     console.log(`Deployed at: ${bytecodeServer.address}`);
 
@@ -41,7 +49,7 @@ async function _deployTokenLinker(chain, wallet) {
         wallet,
         TokenLinker,
         TokenLinkerProxy,
-        [chain.gateway, chain.gasService, ravAddress, chain.tokenDeployer, chain.name],
+        [chain.gateway, chain.gasService, ravAddress, chain.tokenDeployer, chain.tokenImplementation, chain.name],
         [],
         '0x',
         'tokenLinker',
