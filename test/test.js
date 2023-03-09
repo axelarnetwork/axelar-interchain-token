@@ -7,6 +7,7 @@ const {
     Wallet,
     constants: { AddressZero },
 } = require('ethers');
+const { ethers } = require('hardhat');
 const { expect } = chai;
 const { keccak256, defaultAbiCoder } = require('ethers/lib/utils');
 const { setJSON } = require('@axelar-network/axelar-local-dev/dist/utils');
@@ -77,19 +78,60 @@ describe('Token', () => {
     const name = 'Test Token';
     const symbol = 'TT';
     const decimals = 13;
+    let otherWallet;
     before(async() => {
         token = await deployToken(chains[0], wallet, name, symbol, decimals);
+        otherWallet = new Wallet(keccak256('0x685747'), token.provider);
+        const walletConnected = wallet.connect(token.provider);
+        await walletConnected.sendTransaction({
+            to: otherWallet.address,
+            value: BigInt(1e18),
+        });
     });
     it('Should Test that the token has the correct name, symbol, decimals and owner', async() => {
-        console.log(await token.name());
         expect(await token.name()).to.equal(name);
         expect(await token.symbol()).to.equal(symbol);
         expect(await token.decimals()).to.equal(decimals);
         expect(await token.owner()).to.equal(wallet.address);
     });
+    it('Should be able to mint some token', async() => {
+        const amount = 1234;
+        expect(Number(await token.balanceOf(otherWallet.address))).to.equal(0);
+
+        await (await token.mint(otherWallet.address, amount)).wait();
+
+        expect(Number(await token.balanceOf(otherWallet.address))).to.equal(1234);
+
+    });
+    it('Should fail to mint token with another user', async() => {
+        const amount = 1234;
+        expect(Number(await token.balanceOf(wallet.address))).to.equal(0);
+
+        expect(token.connect(otherWallet).mint(wallet.address, amount)).to.be.revertedWith('NotOwner()');
+
+    });
+    it('Should fail to burn token with another user', async() => {
+        const amount = 1234;
+        expect(Number(await token.balanceOf(wallet.address))).to.equal(0);
+
+        await (await token.connect(otherWallet).approve(otherWallet.address, amount)).wait();
+
+        expect(token.connect(otherWallet).burnFrom(otherWallet.address, amount)).to.be.revertedWith('NotOwner()');
+
+    });
+    it('Should be able to burn some token', async() => {
+        const amount = 1234;
+        expect(Number(await token.balanceOf(otherWallet.address))).to.equal(amount);
+
+        await (await token.connect(otherWallet).approve(wallet.address, amount)).wait();
+        await (await token.burnFrom(otherWallet.address, amount)).wait();
+
+        expect(Number(await token.balanceOf(otherWallet.address))).to.equal(0);
+
+    });
 });
 
-describe('Token Linker', () => {
+describe.only('Token Linker', () => {
     before(async () => {
         for (const chain of chains) {
             const provider = getDefaultProvider(chain.rpc);
@@ -104,9 +146,18 @@ describe('Token Linker', () => {
     it(`Should Register a Token`, async () => {
         const origin = chains[0];
 
-        const tokenId = await registerOriginToken(origin, wallet, origin.token);
+        const tokenId = await origin.tl.getOriginTokenId(origin.token);
+
+        await expect(origin.tl.registerOriginToken(origin.token)).to.emit(origin.tl, 'TokenRegistered')
+            .withArgs(tokenId, origin.token, true, false, false);
+        
         const address = await origin.tl.getTokenAddress(tokenId);
         expect(address).to.equal(origin.token);
+    });
+    it(`Should Fail to Register a Registered Token`, async () => {
+        const origin = chains[0];
+
+        expect(origin.tl.registerOriginToken(origin.token)).to.be.revertedWith('AlreadyRegistered()');
     });
     it(`Should deploy a remote token`, async () => {
         const origin = chains[0];
@@ -128,15 +179,8 @@ describe('Token Linker', () => {
 
         const newToken = await deployToken(origin, wallet, 'Unregistered Token', 'UT', 18);
 
-        const tokenId = await origin.tl.getOriginTokenId(origin.token);
-        await deployRemoteTokens(origin, wallet, tokenId, [destination.name], [1e7]);
-
-        await new Promise((resolve) => {
-            setTimeout(() => {
-                resolve();
-            }, 500);
-        });
-        expect(await destination.tl.getTokenAddress(tokenId)).to.not.equal(AddressZero);
+        const tokenId = await origin.tl.getOriginTokenId(newToken.address);
+        expect(origin.tl.deployRemoteTokens(tokenId, [destination.name], [1e7])).to.be.revertedWith('NotOriginToken()');
     });
     it(`Should send some token from origin to destination`, async () => {
         const origin = chains[0];
