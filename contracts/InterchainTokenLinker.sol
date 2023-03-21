@@ -346,7 +346,7 @@ contract InterchainTokenLinker is IInterchainTokenLinker, AxelarExecutable, Upgr
         if (gasValues.length != length) revert LengthMismatch();
         for (uint256 i; i < length; ++i) {
             uint256 gasValue = gasValues[i];
-            if (tokenData.isGateway() && linkerRouter.supportedByGateway(destinationChains[i])) revert SupportedByGateway();
+            if (tokenData.isGateway() && linkerRouter.supportedByGateway(destinationChains[i])) revert GatewayToken();
             bytes memory payload = abi.encodeWithSelector(
                 this.selfDeployToken.selector,
                 tokenId,
@@ -588,7 +588,7 @@ contract InterchainTokenLinker is IInterchainTokenLinker, AxelarExecutable, Upgr
     function _takeToken(bytes32 tokenId, address from, uint256 amount) internal {
         bytes32 tokenData = getTokenData(tokenId);
         address tokenAddress = tokenData.getAddress();
-        if (tokenData.isOrigin() || tokenData.isGateway()) {
+        if (tokenData.isOrigin() || tokenData.isGateway()) { 
             _transferFrom(tokenAddress, from, amount);
         } else {
             _burn(tokenAddress, from, amount);
