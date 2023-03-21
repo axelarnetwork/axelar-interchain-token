@@ -15,7 +15,6 @@ interface IInterchainTokenLinker {
     error NotGatewayToken();
     error GatewayToken();
     error LengthMismatch();
-    error SupportedByGateway();
     error NotSelf();
     error ExecutionFailed();
     error ExceedMintLimit(bytes32 tokenId);
